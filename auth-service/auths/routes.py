@@ -6,6 +6,7 @@ from .models import Users, Blacklist
 from functools import wraps
 
 
+# decorator for token verification
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -20,23 +21,25 @@ def token_required(f):
 
     return decorated
 
-
+# if invalid json, return json error, not html
 @app.errorhandler(400)
 def bad_request():
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
 
+# TODO: add HTTP codes to routes' return
 
 @app.route("/hello", methods=["POST"])
 def hello():
     # TODO: remove this function -- it was just for me
     # TODO: before: make the wellcome function. From jwt token reads th info about user and is_admin status
+    # on the verify base
 
     json_data = request.get_json()
     user_name = json_data.get("user_name")
     return {'success': True, 'user_name': user_name}
 
 
-# API Route for checking the client_id and client_secret
+# API Route for checking the user_id and user_secret
 @app.route("/auth", methods=["POST"])
 def auth():
     # get the user_id and secret from the client application
@@ -67,11 +70,10 @@ def verify(_, verification):
     # verify the token 
     return verification
 
-
+# API route for token revocation
 @app.route("/logout", methods=["POST"])
 @token_required
 def logout(token, verification):
-    # TODO: Remove message (it was just for me)
     if verification.get('success') is False:  # if verifications return json data success 'll be Null
         message = verification.get('message')
         status = True
@@ -82,7 +84,9 @@ def logout(token, verification):
         message = 'Adding to blacklist '
     return {'success': status, 'message': message}
 
+# TODO make a logout from all devices
 
+# API route to create the new user
 @app.route("/users", methods=["POST"])
 @token_required
 def users_create(_, verification):
@@ -97,20 +101,20 @@ def users_create(_, verification):
         hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
         hashed_user_secret = hash_object.hexdigest()
 
-        # make a call to the model to authenticate
+        # make a call to the model to create user
         create_response = Users.create(user_name, hashed_user_secret, is_admin)
         return {'success': create_response}
     else:
         return {'success': False, 'message': 'Access Denied'}
 
-
+# DUMMY for API route to delete user (if is_admin)
 @app.route("/users", methods=["DELETE"])
 @token_required
 def users_delete():
     # not yet implemented
     return {'success': False}
 
-
+# API route to get users list
 @app.route("/users", methods=["GET"])
 @token_required
 def users_list(_, verification):
