@@ -6,9 +6,9 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 
-# TODO: move AUTH_SECRECT and EXPIRES_SECONDS to file of ENV
-AUTH_SECRET = 'secret'
-EXPIRES_SECONDS = 600  # int(os.getenv('EXPIRES_SECONDS'))
+
+AUTH_SECRET = os.getenv('AUTH_SECRET')
+EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 
 @dataclass
 class AuthPayload:
@@ -18,12 +18,10 @@ class AuthPayload:
     exp: datetime
 
     def __init__(self, user_id, user_name, is_admin):
-        # TODO: move to global var, reading it from file or ENV
-        expires_seconds = EXPIRES_SECONDS  # int(os.getenv('EXPIRES_SECONDS'))
         self.id = user_id
         self.name = user_name
         self.is_admin = is_admin
-        self.exp = datetime.now(timezone.utc) + timedelta(seconds=expires_seconds)
+        self.exp = datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS)
 
 
 @dataclass
