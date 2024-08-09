@@ -92,9 +92,8 @@ class Users(db.Model):
             except jwt.InvalidTokenError:
                 return {"success": False, "message": "Invalid Token"}
 
-
-def __repr__(self):
-    return f'User {self.user_name} secret {self.user_secret}'
+    def __repr__(self):
+        return f'User {self.user_name} secret {self.user_secret}'
 
 
 class Blacklist(db.Model):
