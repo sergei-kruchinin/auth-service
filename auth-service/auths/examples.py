@@ -9,7 +9,7 @@ def my_decorator(func):
 def say_hello():
     print("Привет, мир!")
 
- 
+
 
 def new_decorator(f):
     def bubble():
