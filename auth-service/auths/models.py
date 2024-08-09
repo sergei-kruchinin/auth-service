@@ -68,7 +68,6 @@ class Users(db.Model):
 
     @classmethod
     def authenticate(cls, user_name, user_proposes_secret):
-        # TODO move to class users
         user = cls.query.filter(cls.user_name == user_name,
                                   cls.user_secret == user_proposes_secret).first()
         if user is not None:
@@ -81,7 +80,6 @@ class Users(db.Model):
 
     @staticmethod
     def auth_verify(token):
-        # TODO move to class Users (?) or Blacklist (!)
         if Blacklist.is_blacklisted(token):
             return {"success": False, "message": "Token invalidated. Get new one"}
         else:
