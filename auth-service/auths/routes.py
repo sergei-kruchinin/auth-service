@@ -3,6 +3,22 @@ from flask import request
 import json
 import hashlib
 from .models import Users, Blacklist
+from functools import wraps
+
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        authorization_header = request.headers.get('authorization')
+
+        # fix bug where no token
+        if authorization_header is None:
+            return {'success': False, 'message': 'header not specified'}
+        token = authorization_header.replace("Bearer ", "")
+        verification = Users.auth_verify(token)
+        return f(token, verification, *args, **kwargs)
+
+    return decorated
 
 
 @app.errorhandler(400)
@@ -46,33 +62,16 @@ def auth():
 
 # API route for verifying the token passed by API calls
 @app.route("/verify", methods=["POST"])
-def verify():
+@token_required
+def verify(_, verification):
     # verify the token 
-    authorization_header = request.headers.get('authorization')
-
-    # fix bug where no token
-    if authorization_header is None:
-        return {'success': False, 'message': 'header not specified'}
-    token = authorization_header.replace("Bearer ", "")
-    verification = Users.auth_verify(token)
     return verification
 
 
 @app.route("/logout", methods=["POST"])
-def logout():
+@token_required
+def logout(token, verification):
     # TODO: Remove message (it was just for me)
-
-    # Unobviously we don't need to add token to blacklist if it's already present
-    # # (by the way may be it'll be better to Blacklist.add_token better to check it?... hm
-    # Checking authorization
-    authorization_header = request.headers.get('authorization')
-    # fix bug where no token
-    if authorization_header is None:
-        return {'success': False, 'message': 'header not specified'}
-
-    token = authorization_header.replace("Bearer ", "")
-    # checking correctly authenticated?
-    verification = Users.auth_verify(token)
     if verification.get('success') is False:  # if verifications return json data success 'll be Null
         message = verification.get('message')
         status = True
@@ -85,15 +84,8 @@ def logout():
 
 
 @app.route("/users", methods=["POST"])
-def users_create():
-    # verify the token
-    authorization_header = request.headers.get('authorization')
-    if authorization_header is None:
-        return {'success': False, 'message': 'header not specified'}
-
-    token = authorization_header.replace("Bearer ", "")
-    verification = Users.auth_verify(token)
-
+@token_required
+def users_create(_, verification):
     if verification.get("is_admin"):
         # get the client_id and secret from the client application
         json_data = request.get_json()
@@ -113,20 +105,15 @@ def users_create():
 
 
 @app.route("/users", methods=["DELETE"])
+@token_required
 def users_delete():
     # not yet implemented
     return {'success': False}
 
 
 @app.route("/users", methods=["GET"])
-def users_list():
-    # verify the token
-    authorization_header = request.headers.get('authorization')
-    if authorization_header is None:
-        return {'success': False, 'message': 'header not specified'}
-
-    token = authorization_header.replace("Bearer ", "")
-    verification = Users.auth_verify(token)
+@token_required
+def users_list(_, verification):
     if verification.get("is_admin"):
         return Users.list()
     else:
