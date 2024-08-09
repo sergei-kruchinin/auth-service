@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 # Load .env file
 load_dotenv()
 
-
 # instantiate the Flask app.
 app = Flask(__name__)
 
@@ -17,6 +16,3 @@ app.config['SECRET_KEY'] = ''
 # app.config["JWT_ALGORITHM"] = "HS256"
 
 db = SQLAlchemy(app)
-
-
-

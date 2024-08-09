@@ -6,9 +6,9 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 
-
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
+
 
 @dataclass
 class AuthPayload:
@@ -28,6 +28,7 @@ class AuthPayload:
 class AuthResponse:
     token: str
     expires_in: int
+
 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -69,7 +70,7 @@ class Users(db.Model):
     @classmethod
     def authenticate(cls, user_name, user_proposes_secret):
         user = cls.query.filter(cls.user_name == user_name,
-                                  cls.user_secret == user_proposes_secret).first()
+                                cls.user_secret == user_proposes_secret).first()
         if user is not None:
             payload = AuthPayload(user.id, user.user_name, user.is_admin)
             encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
