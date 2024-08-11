@@ -1,9 +1,12 @@
-from . import app
-from flask import request
-import json
 import hashlib
-from .models import Users, Blacklist
+import json
+import os
 from functools import wraps
+
+from flask import request
+
+from . import app
+from .models import Users, Blacklist
 
 
 # decorator for token verification
@@ -21,12 +24,14 @@ def token_required(f):
 
     return decorated
 
+
 # if invalid json, return json error, not html
 @app.errorhandler(400)
 def bad_request():
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
 
 # TODO: add HTTP codes to routes' return
+
 
 @app.route("/hello", methods=["POST"])
 def hello():
@@ -39,10 +44,12 @@ def hello():
     return {'success': True, 'user_name': user_name}
 
 
-
 # API Route dummy for yandex OAuth 2.0
 @app.route("/auth/yandex", methods=["POST"])
 def auth_yandex():
+    yandex_id = os.getenv('YANDEX_ID')
+    yandex_secret = os.getenv('YANDEX_SECRET')
+    print(yandex_id, yandex_secret)
     return {'success': False, 'message': 'Yandex dummy'}
 
 
@@ -77,6 +84,7 @@ def verify(_, verification):
     # verify the token 
     return verification
 
+
 # API route for token revocation
 @app.route("/logout", methods=["POST"])
 @token_required
@@ -92,6 +100,7 @@ def logout(token, verification):
     return {'success': status, 'message': message}
 
 # TODO make a logout from all devices
+
 
 # API route to create the new user
 @app.route("/users", methods=["POST"])
@@ -114,12 +123,14 @@ def users_create(_, verification):
     else:
         return {'success': False, 'message': 'Access Denied'}
 
+
 # DUMMY for API route to delete user (if is_admin)
 @app.route("/users", methods=["DELETE"])
 @token_required
 def users_delete():
     # not yet implemented
     return {'success': False}
+
 
 # API route to get users list
 @app.route("/users", methods=["GET"])
