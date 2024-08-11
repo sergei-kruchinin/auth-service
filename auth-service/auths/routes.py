@@ -39,6 +39,13 @@ def hello():
     return {'success': True, 'user_name': user_name}
 
 
+
+# API Route dummy for yandex OAuth 2.0
+@app.route("/auth/yandex", methods=["POST"])
+def auth_yandex():
+    return {'success': False, 'message': 'Yandex dummy'}
+
+
 # API Route for checking the user_id and user_secret
 @app.route("/auth", methods=["POST"])
 def auth():
