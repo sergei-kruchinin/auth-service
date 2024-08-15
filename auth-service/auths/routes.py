@@ -1,13 +1,14 @@
+import base64
 import hashlib
 import json
 import os
 from functools import wraps
 
+import requests
 from flask import request
 
 from . import app
 from .models import Users, Blacklist
-import requests
 from .yandex_html import *
 
 
@@ -41,7 +42,7 @@ def hello():
     # TODO: before: make the wellcome function. From jwt token reads th info about user and is_admin status
     # on the verify base
 
-    token = request.json.get("user_name")
+    user_name = request.json.get("user_name")
     return {'success': True, 'user_name': user_name}
 
 # API dummy
@@ -60,7 +61,6 @@ def site_root():
 # API Callback to get token and recieve data from yandex
 @app.route("/auth/yandex/callback", methods=["POST","GET"])
 def auth_yandex_post():
-    print('Callback!')
 
     if request.method == 'POST':
         token = request.json.get('token')
@@ -68,6 +68,26 @@ def auth_yandex_post():
         # GET
         token = request.args.get('token')
         yandex_code = request.args.get('code')
+
+        if token is None and yandex_code is not None:
+            yandex_url = 'https://oauth.yandex.ru/token'
+            client_id = os.getenv('YANDEX_ID')
+            client_secret = os.getenv('YANDEX_SECRET')
+            client_id_sec = f'{client_id}:{client_secret}'
+            client_id_sec_base64_encoded = base64.b64encode(client_id_sec.encode()).decode()
+            headers = {'Authorization': f'Basic {client_id_sec_base64_encoded}'}
+            params = {'grant_type': 'authorization_code', 'code': yandex_code}
+            response = requests.post(yandex_url, headers=headers, data=params)
+            try:
+                json_response = response.json()
+            except requests.exceptions.JSONDecodeError:
+                return {'error': 'Response could not be decoded as JSON.'}, 400
+
+            if response.status_code == 200:
+                token = json_response.get('access_token')
+            else:
+                return {'error': 'Unable to retrieve access_token'}, 400
+
 
 
     headers = {'Authorization': f'OAuth {token}'}
@@ -79,20 +99,11 @@ def auth_yandex_post():
         user_info = response.json()
         user_email = user_info.get('default_email')
         user_full_name = user_info.get('real_name')
+        # TO DO -- add info to database and return JWT-token for auth, i.e. in POSTMAN
         return {'email': user_email, 'full_name': user_full_name}, 200
 
     return {'error': 'Unable to retrieve user data'}, 400
 
-
-
-
-
-
-# TO DO  route to return path to open in iframe https://oauth.yandex.ru/authorize?client_id=
-# &response_type=token&redirect_uri=https%3A%2F%2F{domain}%2Fauth%2Fyandex%2Fcallback
-# widget_kind=button&
-# suggest_hostname={domain}&
-# et={what is the et?}&force_confirm=1
 
 
 # Frontend imitation for testing Yandex OAuth 2.0
@@ -113,6 +124,14 @@ def auth_yandex_bycode():
     iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
     return {'iframe_uri': iframe_uri}
 
+
+# HTML sugar for easy testing
+@app.route("/auth/yandex/bycode.html", methods=["GET"])
+def auth_yandex_bycode_html():
+    yandex_id = os.getenv('YANDEX_ID')
+    api_domain = os.getenv('API_DOMAIN')
+    iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    return f'<a href="{iframe_uri}">{iframe_uri}</a>'
 
 
 # Frontend imitation helper page (to get token from yandex) and send to frontend auth_yandex_html page
