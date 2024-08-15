@@ -8,6 +8,8 @@ from flask import request
 from . import app
 from .models import Users, Blacklist
 import requests
+from .yandex_html import *
+
 
 # decorator for token verification
 def token_required(f):
@@ -32,23 +34,22 @@ def bad_request():
 
 # TODO: add HTTP codes to routes' return
 
-
+# API dummy
 @app.route("/hello", methods=["POST"])
 def hello():
     # TODO: remove this function -- it was just for me
     # TODO: before: make the wellcome function. From jwt token reads th info about user and is_admin status
     # on the verify base
 
-    json_data = request.get_json()
-    user_name = json_data.get("user_name")
+    token = request.json.get("user_name")
     return {'success': True, 'user_name': user_name}
 
-
+# API dummy
 @app.route("/hello", methods=["GET"])
 def hello_get():
     return {'success': True, 'message': 'hello script'}
 
-
+# HTML / dummy
 @app.route("/", methods=["GET"])
 def site_root():
     return '<html><body>hello world</body></html>'
@@ -56,7 +57,7 @@ def site_root():
 
 
 
-# API Route dummy for yandex OAuth 2.0
+# API Callback to get token and recieve data from yandex
 @app.route("/auth/yandex/callback", methods=["POST","GET"])
 def auth_yandex_post():
     print('Callback!')
@@ -64,24 +65,20 @@ def auth_yandex_post():
     if request.method == 'POST':
         token = request.json.get('token')
     else:
+        # GET
         token = request.args.get('token')
+        yandex_code = request.args.get('code')
 
-
-    print(token)
 
     headers = {'Authorization': f'OAuth {token}'}
     yandex_url = 'https://login.yandex.ru/info'
 
-    # Делаем запрос к API Яндекса для получения информации о пользователе
+    # Request to Yandex API to get user info
     response = requests.get(yandex_url, headers=headers)
-    print(response.request.url)
-    print(response.request.headers)
-    print('CHecking')
-    print(response.status_code)
     if response.status_code == 200:
         user_info = response.json()
-        user_email = user_info.get('default_email')  # Получаем email пользователя
-        user_full_name = user_info.get('real_name')  # Получаем фио пользователя
+        user_email = user_info.get('default_email')
+        user_full_name = user_info.get('real_name')
         return {'email': user_email, 'full_name': user_full_name}, 200
 
     return {'error': 'Unable to retrieve user data'}, 400
@@ -97,82 +94,33 @@ def auth_yandex_post():
 # suggest_hostname={domain}&
 # et={what is the et?}&force_confirm=1
 
-# DUMMY HTML for Oauth 2.0 Request
+
+# Frontend imitation for testing Yandex OAuth 2.0
 @app.route("/auth/yandex.html", methods=["GET"])
 def auth_yandex_html():
     yandex_id = os.getenv('YANDEX_ID')
-    yandex_secret = os.getenv('YANDEX_SECRET')
     api_domain = os.getenv('API_DOMAIN')
     redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
     callback_uri = f"https://{api_domain}/auth/yandex/callback"
+    return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
 
-    html_code = f'''
-<html>
- <head>
- <script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
- </head>
-<body>
-<script>
-window.YaAuthSuggest.init(
-    {{
-      client_id: "{yandex_id}",
-      response_type: "token",
-      redirect_uri: "{redirect_uri}"
-    }},
-    "https://{api_domain}",
-    {{
-      view: "button",
-      parentId: "buttonContainerId",
-      buttonSize: 'm',
-      buttonView: 'main',
-      buttonTheme: 'light',
-      buttonBorderRadius: "0",
-      buttonIcon: 'ya',
-    }}
-  )
-  .then(({{handler}}) => handler())
-  .then(data => {{
-    // Отправляем POST запрос на свой сервер с токеном в теле запроса
-    fetch("{callback_uri}", {{
-      method: 'POST', 
-      headers: {{
-        'Content-Type': 'application/json',
-      }},
-      body: JSON.stringify({{token: data.access_token}})
-    }})
-    .then(response => response.json())
-    .then(data => console.log('Success:', data))
-    .catch((error) => console.log('Error:', error));
-  }})
-  .catch(error => console.log('Обработка ошибки', error))
-</script>
-'''
-    return html_code
 
-# HTML For callback proceed
+# API route returns URI for yandex page for authorization
+@app.route("/auth/yandex/bycode", methods=["GET"])
+def auth_yandex_bycode():
+    yandex_id = os.getenv('YANDEX_ID')
+    api_domain = os.getenv('API_DOMAIN')
+    iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    return {'iframe_uri': iframe_uri}
 
+
+
+# Frontend imitation helper page (to get token from yandex) and send to frontend auth_yandex_html page
 @app.route("/auth/yandex/callback.html", methods=["GET"])
 def auth_yandex_callback_html():
-    yandex_id = os.getenv('YANDEX_ID')
-    yandex_secret = os.getenv('YANDEX_SECRET')
     api_domain = os.getenv('API_DOMAIN')
     callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
-
-    html_code = f'''
-<html>
- <head>
-   <script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-token-with-polyfills-latest.js"></script>
-</head>
-<body>
-   <script>
-      window.onload = function() {{
-         window.YaSendSuggestToken("{callback_uri}", {{
-            "kek": true
-         }});
-      }};
-   </script>
-'''
-    return html_code
+    return auth_yandex_callback_html_code(callback_uri)
 
 
 # API Route for checking the user_id and user_secret
