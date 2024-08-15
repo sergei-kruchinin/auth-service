@@ -35,20 +35,6 @@ def bad_request():
 
 # TODO: add HTTP codes to routes' return
 
-# API dummy
-@app.route("/hello", methods=["POST"])
-def hello():
-    # TODO: remove this function -- it was just for me
-    # TODO: before: make the wellcome function. From jwt token reads th info about user and is_admin status
-    # on the verify base
-
-    user_name = request.json.get("user_name")
-    return {'success': True, 'user_name': user_name}
-
-# API dummy
-@app.route("/hello", methods=["GET"])
-def hello_get():
-    return {'success': True, 'message': 'hello script'}
 
 # HTML / dummy
 @app.route("/", methods=["GET"])
@@ -115,22 +101,22 @@ def auth_yandex_html():
     callback_uri = f"https://{api_domain}/auth/yandex/callback"
     return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
 
+# Yandex OAuth 2.0 Authorization by Code support almost without frontend (only for yandex form if it's needed)
+def generate_yandex_iframe_uri():
+    yandex_id = os.getenv('YANDEX_ID')
+    iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    return iframe_uri
 
-# API route returns URI for yandex page for authorization
+# API route returns URI for yandex page for authorization -- for REST API client
 @app.route("/auth/yandex/bycode", methods=["GET"])
 def auth_yandex_bycode():
-    yandex_id = os.getenv('YANDEX_ID')
-    api_domain = os.getenv('API_DOMAIN')
-    iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    iframe_uri = generate_yandex_iframe_uri()
     return {'iframe_uri': iframe_uri}
-
 
 # HTML sugar for easy testing
 @app.route("/auth/yandex/bycode.html", methods=["GET"])
 def auth_yandex_bycode_html():
-    yandex_id = os.getenv('YANDEX_ID')
-    api_domain = os.getenv('API_DOMAIN')
-    iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    iframe_uri = generate_yandex_iframe_uri()
     return f'<a href="{iframe_uri}">{iframe_uri}</a>'
 
 
