@@ -53,6 +53,10 @@ def invalid_method(error):
 def server_error(error):
     return {'success': False, 'message': 'Server error'}, 500
 
+@app.errorhandler(415)
+def invalid_mediatype(error):
+    return {'success': False, 'message': 'Unsupported media type'}, 415
+
 # TODO: add HTTP codes to routes' return
 
 
