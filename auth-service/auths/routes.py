@@ -21,7 +21,13 @@ def token_required(f):
         # fix bug where no token
         if authorization_header is None:
             return {'success': False, 'message': 'header not specified'}
-        token = authorization_header.replace("Bearer ", "")
+
+        prefix = "Bearer "
+        if authorization_header.startswith(prefix):
+            token = authorization_header[len(prefix):]
+        else:
+            return {'success': False, 'message': 'token prefix not supported'}
+
         verification = Users.auth_verify(token)
         return f(token, verification, *args, **kwargs)
 
@@ -30,8 +36,22 @@ def token_required(f):
 
 # if invalid json, return json error, not html
 @app.errorhandler(400)
-def bad_request():
+def bad_request(error):
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
+
+#if not found
+@app.errorhandler(404)
+def not_found(error):
+    return {'success': False, 'message': 'Resource not found'}, 404
+
+# if invalid method, return json error, not html
+@app.errorhandler(405)
+def invalid_method(error):
+    return {'success': False, 'message': 'Invalid method sent'}, 405
+
+@app.errorhandler(500)
+def server_error(error):
+    return {'success': False, 'message': 'Server error'}, 500
 
 # TODO: add HTTP codes to routes' return
 
@@ -145,6 +165,9 @@ def auth_yandex_callback_html():
 def auth():
     # get the user_id and secret from the client application
     json_data = request.get_json()
+    if json_data is None:
+        return {'success': False, 'message': 'No input data provided'}, 400
+
     user_name = json_data.get("login")
     user_secret_input = json_data.get("password")
 
@@ -161,7 +184,7 @@ def auth():
     if not authentication:
         return {'success': False}
     else:
-        return json.dumps(authentication)
+        return authentication
 
 
 # API route for verifying the token passed by API calls
