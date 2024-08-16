@@ -83,10 +83,22 @@ def auth_yandex_post():
     response = requests.get(yandex_url, headers=headers)
     if response.status_code == 200:
         user_info = response.json()
+        yandex_id = user_info.get('id')
+        yandex_login = user_info.get('login')
+        user_sex = user_info.get('sex')
+        user_birthday = user_info.get('birthday')
+
         user_email = user_info.get('default_email')
         user_full_name = user_info.get('real_name')
+
         # TO DO -- add info to database and return JWT-token for auth, i.e. in POSTMAN
-        return {'email': user_email, 'full_name': user_full_name}, 200
+        return {'email': user_email,
+                'full_name': user_full_name,
+                'yandex_id': yandex_id,
+                'yandex_login': yandex_login,
+                'user_sex':  user_sex,
+                'user_birthday': user_birthday
+                }, 200
 
     return {'error': 'Unable to retrieve user data'}, 400
 
