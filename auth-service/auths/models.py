@@ -13,13 +13,17 @@ EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 @dataclass
 class AuthPayload:
     id: int
-    name: str
+    login: str
+    first_name: str
+    last_name: str
     is_admin: bool
     exp: datetime
 
-    def __init__(self, user_id, user_name, is_admin):
-        self.id = user_id
-        self.name = user_name
+    def __init__(self, id, login, first_name, last_name, is_admin):
+        self.id = id
+        self.login = login
+        self.first_name = first_name
+        self.last_name = last_name
         self.is_admin = is_admin
         self.exp = datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS)
 
@@ -32,21 +36,30 @@ class AuthResponse:
 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_name = db.Column(db.String(128), unique=True, nullable=False)
-    user_secret = db.Column(db.String(256), nullable=False)
+    login = db.Column(db.String(128), unique=True, nullable=False)
+    first_name = db.Column(db.String(128), nullable=True)
+    last_name = db.Column(db.String(128), nullable=True)
+    secret = db.Column(db.String(256), nullable=True)
     is_admin = db.Column(db.Boolean, nullable=False)
+    source = db.Column(db.String(50), nullable=True)
+    oa_id = db.Column(db.String(256), nullable=True)
     created_at = db.Column(
         db.DateTime(timezone=True),
         server_default=func.now()
     )
-
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        onupdate=func.now()
+    )
     @classmethod
     def list(cls):
         users = cls.query.all()
         if users:
             user_data = [{
                 "id": user.id,
-                "name": user.user_name,
+                'login': user.login,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
                 "is_admin": user.is_admin
             }
                 for user in users
@@ -56,10 +69,10 @@ class Users(db.Model):
             return {'success': False}
 
     @classmethod
-    def create(cls, name, secret, flag_admin):
-
+    def create(cls, login, first_name, last_name, secret, is_admin):
         try:
-            new_user = cls(user_name=name, user_secret=secret, is_admin=flag_admin)
+            print(f'login={login}, first_name={first_name}, last_name={last_name}, secret={secret}, is_admin={is_admin}')
+            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=secret, is_admin=is_admin)
             db.session.add(new_user)
             db.session.commit()
             return True
@@ -68,11 +81,14 @@ class Users(db.Model):
             return False
 
     @classmethod
-    def authenticate(cls, user_name, user_proposes_secret):
-        user = cls.query.filter(cls.user_name == user_name,
-                                cls.user_secret == user_proposes_secret).first()
+    def authenticate(cls, login, secret):
+        if secret == '' or secret is None:
+            return False
+
+        user = cls.query.filter(cls.login == login,
+                                cls.secret == secret).first()
         if user is not None:
-            payload = AuthPayload(user.id, user.user_name, user.is_admin)
+            payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
             encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
             response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
             return response.__dict__
@@ -93,7 +109,7 @@ class Users(db.Model):
                 return {"success": False, "message": "Invalid Token"}
 
     def __repr__(self):
-        return f'User {self.user_name} secret {self.user_secret}'
+        return f'User {self.login}'
 
 
 class Blacklist(db.Model):

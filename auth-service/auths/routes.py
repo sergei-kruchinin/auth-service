@@ -1,6 +1,5 @@
 import base64
 import hashlib
-import json
 import os
 from functools import wraps
 
@@ -39,19 +38,23 @@ def token_required(f):
 def bad_request(error):
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
 
-#if not found
+
+# if not found
 @app.errorhandler(404)
 def not_found(error):
     return {'success': False, 'message': 'Resource not found'}, 404
+
 
 # if invalid method, return json error, not html
 @app.errorhandler(405)
 def invalid_method(error):
     return {'success': False, 'message': 'Invalid method sent'}, 405
 
+
 @app.errorhandler(500)
 def server_error(error):
     return {'success': False, 'message': 'Server error'}, 500
+
 
 @app.errorhandler(415)
 def invalid_mediatype(error):
@@ -66,10 +69,8 @@ def site_root():
     return '<html><body>hello world</body></html>'
 
 
-
-
-# API Callback to get token and recieve data from yandex
-@app.route("/auth/yandex/callback", methods=["POST","GET"])
+# API Callback to get token and receive data from yandex
+@app.route("/auth/yandex/callback", methods=["POST", "GET"])
 def auth_yandex_post():
 
     if request.method == 'POST':
@@ -98,8 +99,6 @@ def auth_yandex_post():
             else:
                 return {'error': 'Unable to retrieve access_token'}, 400
 
-
-
     headers = {'Authorization': f'OAuth {token}'}
     yandex_url = 'https://login.yandex.ru/info'
 
@@ -127,7 +126,6 @@ def auth_yandex_post():
     return {'error': 'Unable to retrieve user data'}, 400
 
 
-
 # Frontend imitation for testing Yandex OAuth 2.0
 @app.route("/auth/yandex.html", methods=["GET"])
 def auth_yandex_html():
@@ -137,17 +135,20 @@ def auth_yandex_html():
     callback_uri = f"https://{api_domain}/auth/yandex/callback"
     return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
 
+
 # Yandex OAuth 2.0 Authorization by Code support almost without frontend (only for yandex form if it's needed)
 def generate_yandex_iframe_uri():
     yandex_id = os.getenv('YANDEX_ID')
-    iframe_uri=f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
     return iframe_uri
+
 
 # API route returns URI for yandex page for authorization -- for REST API client
 @app.route("/auth/yandex/bycode", methods=["GET"])
 def auth_yandex_bycode():
     iframe_uri = generate_yandex_iframe_uri()
     return {'iframe_uri': iframe_uri}
+
 
 # HTML sugar for easy testing
 @app.route("/auth/yandex/bycode.html", methods=["GET"])
@@ -223,7 +224,15 @@ def users_create(_, verification):
     if verification.get("is_admin"):
         # get the client_id and secret from the client application
         json_data = request.get_json()
-        user_name = json_data.get("login")
+        login = json_data.get("login")
+        first_name = json_data.get("first_name")
+        last_name = json_data.get("last_name")
+        # compability
+        if first_name == '' or first_name is None:
+            first_name = login
+        if last_name == '' or last_name is None:
+            last_name = 'system'
+
         user_secret_input = json_data.get("password")
         is_admin = json_data.get("is_admin")
 
@@ -232,10 +241,13 @@ def users_create(_, verification):
         hashed_user_secret = hash_object.hexdigest()
 
         # make a call to the model to create user
-        create_response = Users.create(user_name, hashed_user_secret, is_admin)
-        return {'success': create_response}
+        create_response = Users.create(login, first_name, last_name, hashed_user_secret, is_admin)
+        if create_response:
+            return {'success': create_response}, 201
+        else:
+            return {'success': False, 'message': 'Could not create -- probably some fields are missings'}, 400
     else:
-        return {'success': False, 'message': 'Access Denied'}
+        return {'success': False, 'message': 'Access Denied'}, 401
 
 
 # DUMMY for API route to delete user (if is_admin)

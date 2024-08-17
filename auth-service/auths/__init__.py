@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import os
 from dotenv import load_dotenv
+# from flask_migrate import Migrate
 
 # Load .env file
 load_dotenv()
@@ -16,3 +17,5 @@ app.config['SECRET_KEY'] = ''
 # app.config["JWT_ALGORITHM"] = "HS256"
 
 db = SQLAlchemy(app)
+
+# migrate = Migrate(app, db)
