@@ -216,6 +216,7 @@ def logout(token, verification):
 
 # TODO make a logout from all devices
 
+# TODO is_system and source and source_id usage in routes and methods
 
 # API route to create the new user
 @app.route("/users", methods=["POST"])
@@ -235,6 +236,8 @@ def users_create(_, verification):
 
         user_secret_input = json_data.get("password")
         is_admin = json_data.get("is_admin")
+        if is_admin == '' or is_admin is None:
+            is_admin = False
 
         # the user secret in the database is "hashed" with a one-way hash
         hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
@@ -246,6 +249,43 @@ def users_create(_, verification):
             return {'success': create_response}, 201
         else:
             return {'success': False, 'message': 'Could not create -- probably some fields are missings'}, 400
+    else:
+        return {'success': False, 'message': 'Access Denied'}, 401
+
+
+
+# Route only for testing method
+# Delete after pdating /auth/yandex/callback and adding using this method there
+@app.route("/users_update", methods=["POST"])
+@token_required
+def users_update(_, verification):
+    if verification.get("is_admin"):
+        # get the data from the client application
+        json_data = request.get_json()
+        login = json_data.get("login")
+        first_name = json_data.get("first_name")
+        last_name = json_data.get("last_name")
+
+        if first_name == '' or first_name is None:
+            first_name = login
+        if last_name == '' or last_name is None:
+            last_name = 'system'
+
+        user_secret_input = json_data.get("password")
+        is_admin = json_data.get("is_admin")
+        if is_admin == '' or is_admin is None:
+            is_admin = False
+
+        # the user secret in the database is "hashed" with a one-way hash
+        hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
+        hashed_user_secret = hash_object.hexdigest()
+
+        # make a call to the model to update user
+        update_response = Users.create_or_update(login, first_name, last_name, hashed_user_secret, is_admin)
+        if update_response:
+            return {'success': True}, 200
+        else:
+            return {'success': False, 'message': 'Could not update -- probably some fields are missing'}, 400
     else:
         return {'success': False, 'message': 'Access Denied'}, 401
 

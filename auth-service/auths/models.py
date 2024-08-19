@@ -68,17 +68,38 @@ class Users(db.Model):
         else:
             return {'success': False}
 
+
     @classmethod
-    def create(cls, login, first_name, last_name, secret, is_admin):
+    def create(cls, login, first_name, last_name, hashed_secret, is_admin):
+        is_admin = bool(is_admin)
         try:
-            print(f'login={login}, first_name={first_name}, last_name={last_name}, secret={secret}, is_admin={is_admin}')
-            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=secret, is_admin=is_admin)
+            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_secret, is_admin=is_admin)
             db.session.add(new_user)
             db.session.commit()
             return True
         except Exception:
             db.session.rollback()
             return False
+
+    # Method for using by OAuth 2.0 authorizatiob
+    # May be to do: source and oa_id params.
+    @classmethod
+    def create_or_update(cls, login, first_name, last_name, hashed_secret, is_admin):
+        is_admin = bool(is_admin)
+        user = cls.query.filter_by(login=login).first()
+
+        if user is None:
+            # User doesn't exist, so create a new one
+            user = cls.create(login, first_name, last_name, hashed_secret, is_admin)
+        else:
+            # User exists, update the existing user information
+            user.first_name = first_name
+            user.last_name = last_name
+            user.secret = hashed_secret
+            user.is_admin = is_admin
+            db.session.commit()
+
+        return user
 
     @classmethod
     def authenticate(cls, login, secret):
