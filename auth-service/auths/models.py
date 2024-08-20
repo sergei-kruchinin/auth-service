@@ -60,7 +60,9 @@ class Users(db.Model):
                 'login': user.login,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
-                "is_admin": user.is_admin
+                "is_admin": user.is_admin,
+                'source': user.source,
+                'oa_id': user.oa_id
             }
                 for user in users
             ]
@@ -70,10 +72,11 @@ class Users(db.Model):
 
 
     @classmethod
-    def create(cls, login, first_name, last_name, hashed_secret, is_admin):
+    def create(cls, login, first_name, last_name, hashed_secret, is_admin, source='manual', oa_id=None):
         is_admin = bool(is_admin)
         try:
-            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_secret, is_admin=is_admin)
+
+            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_secret, is_admin=is_admin, source=source, oa_id=oa_id)
             db.session.add(new_user)
             db.session.commit()
             return True
@@ -84,19 +87,21 @@ class Users(db.Model):
     # Method for using by OAuth 2.0 authorizatiob
     # May be to do: source and oa_id params.
     @classmethod
-    def create_or_update(cls, login, first_name, last_name, hashed_secret, is_admin):
+    def create_or_update(cls, login, first_name, last_name, hashed_secret, is_admin, source, oa_id):
         is_admin = bool(is_admin)
         user = cls.query.filter_by(login=login).first()
 
         if user is None:
             # User doesn't exist, so create a new one
-            user = cls.create(login, first_name, last_name, hashed_secret, is_admin)
+            user = cls.create(login, first_name, last_name, hashed_secret, is_admin, source, oa_id)
         else:
             # User exists, update the existing user information
             user.first_name = first_name
             user.last_name = last_name
             user.secret = hashed_secret
             user.is_admin = is_admin
+            user.source = source
+            user.oa_id = oa_id
             db.session.commit()
 
         return user
@@ -115,6 +120,18 @@ class Users(db.Model):
             return response.__dict__
         else:
             return False
+
+    @classmethod
+    def authenticate_oauth(cls, login):
+        user = cls.query.filter_by(login=login).first()
+
+        if user is not None:
+            payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
+            encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
+            response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
+            return response.__dict__
+
+        return False
 
     @staticmethod
     def auth_verify(token):

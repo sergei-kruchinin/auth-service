@@ -69,6 +69,40 @@ def site_root():
     return '<html><body>hello world</body></html>'
 
 
+# API Route for checking the user_id and user_secret
+@app.route("/auth", methods=["POST"])
+def auth():
+    # get the user_id and secret from the client application
+    json_data = request.get_json()
+    if json_data is None:
+        return {'success': False, 'message': 'No input data provided'}, 400
+
+    login = json_data.get("login")
+    user_secret_input = json_data.get("password")
+
+    # fix bug if no login or password in json
+    if login is None or user_secret_input is None:
+        return {'success': False, 'message': 'login or password not specified'}
+
+    # the user secret in the database is "hashed" with a one-way hash
+    hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
+    hashed_user_secret = hash_object.hexdigest()
+
+    # make a call to the model to authenticate
+    authentication = Users.authenticate(login, hashed_user_secret)
+    if not authentication:
+        return {'success': False}
+    else:
+        return authentication
+
+
+# API route for verifying the token passed by API calls
+@app.route("/verify", methods=["POST"])
+@token_required
+def verify(_, verification):
+    # verify the token
+    return verification
+
 # API Callback to get token and receive data from yandex
 @app.route("/auth/yandex/callback", methods=["POST", "GET"])
 def auth_yandex_post():
@@ -106,22 +140,36 @@ def auth_yandex_post():
     response = requests.get(yandex_url, headers=headers)
     if response.status_code == 200:
         user_info = response.json()
-        yandex_id = user_info.get('id')
-        yandex_login = user_info.get('login')
-        user_sex = user_info.get('sex')
-        user_birthday = user_info.get('birthday')
+        oa_id = user_info.get('id')
+        # yandex_login = user_info.get('login')
+        # user_sex = user_info.get('sex')
+        # user_birthday = user_info.get('birthday')
 
-        user_email = user_info.get('default_email')
-        user_full_name = user_info.get('real_name')
+        # user_email = user_info.get('default_email')
+        # user_full_name = user_info.get('real_name')
+        first_name = user_info.get('first_name')
+        last_name = user_info.get('last_name')
+        source = "yandex"
+        login = f"{source}:{oa_id}"
+        hashed_user_secret = None
+        is_admin = False
 
-        # TO DO -- add info to database and return JWT-token for auth, i.e. in POSTMAN
-        return {'email': user_email,
-                'full_name': user_full_name,
-                'yandex_id': yandex_id,
-                'yandex_login': yandex_login,
-                'user_sex':  user_sex,
-                'user_birthday': user_birthday
-                }, 200
+        # add to our database
+        update_response = Users.create_or_update(login, first_name, last_name, hashed_user_secret, is_admin, source,
+                                                 oa_id)
+        if update_response:
+            authentication = Users.authenticate_oauth(login)
+            if not authentication:
+                return {'success': False}
+            else:
+                return authentication, 200
+
+        else:
+            return {'success': False, 'message': 'Could not update -- probably some fields are missing'}, 400
+    else:
+        return {'success': False, 'message': 'Access Denied'}, 401
+        # END TO DO
+
 
     return {'error': 'Unable to retrieve user data'}, 400
 
@@ -165,39 +213,7 @@ def auth_yandex_callback_html():
     return auth_yandex_callback_html_code(callback_uri)
 
 
-# API Route for checking the user_id and user_secret
-@app.route("/auth", methods=["POST"])
-def auth():
-    # get the user_id and secret from the client application
-    json_data = request.get_json()
-    if json_data is None:
-        return {'success': False, 'message': 'No input data provided'}, 400
 
-    user_name = json_data.get("login")
-    user_secret_input = json_data.get("password")
-
-    # fix bug if no login or password in json
-    if user_name is None or user_secret_input is None:
-        return {'success': False, 'message': 'login or password not specified'}
-
-    # the user secret in the database is "hashed" with a one-way hash
-    hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
-    hashed_user_secret = hash_object.hexdigest()
-
-    # make a call to the model to authenticate
-    authentication = Users.authenticate(user_name, hashed_user_secret)
-    if not authentication:
-        return {'success': False}
-    else:
-        return authentication
-
-
-# API route for verifying the token passed by API calls
-@app.route("/verify", methods=["POST"])
-@token_required
-def verify(_, verification):
-    # verify the token 
-    return verification
 
 
 # API route for token revocation
@@ -214,9 +230,10 @@ def logout(token, verification):
         message = 'Adding to blacklist '
     return {'success': status, 'message': message}
 
-# TODO make a logout from all devices
 
+# TODO make a logout from all devices
 # TODO is_system and source and source_id usage in routes and methods
+
 
 # API route to create the new user
 @app.route("/users", methods=["POST"])
