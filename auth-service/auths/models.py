@@ -1,10 +1,13 @@
-from . import db
-from sqlalchemy.sql import func
-from flask import jsonify
+import hashlib
 import os
-import jwt
-from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
+import jwt
+from flask import jsonify
+from sqlalchemy.sql import func
+
+from . import db
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
@@ -51,6 +54,17 @@ class Users(db.Model):
         db.DateTime(timezone=True),
         onupdate=func.now()
     )
+
+    @staticmethod
+    def hash_password(password):
+        if password is None:
+            return None
+        elif isinstance(password, str):
+            hash_object = hashlib.sha1(bytes(password, 'utf-8'))
+            return hash_object.hexdigest()
+        else:
+            raise TypeError("Password should be a string")
+
     @classmethod
     def list(cls):
         users = cls.query.all()
@@ -70,13 +84,16 @@ class Users(db.Model):
         else:
             return {'success': False}
 
-
     @classmethod
-    def create(cls, login, first_name, last_name, hashed_secret, is_admin, source='manual', oa_id=None):
+    def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
+
+        hashed_password = cls.hash_password(password)
+
         is_admin = bool(is_admin)
         try:
 
-            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_secret, is_admin=is_admin, source=source, oa_id=oa_id)
+            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_password,
+                           is_admin=is_admin, source=source, oa_id=oa_id)
             db.session.add(new_user)
             db.session.commit()
             return True
@@ -87,18 +104,21 @@ class Users(db.Model):
     # Method for using by OAuth 2.0 authorizatiob
     # May be to do: source and oa_id params.
     @classmethod
-    def create_or_update(cls, login, first_name, last_name, hashed_secret, is_admin, source, oa_id):
+    def create_or_update(cls, login, first_name, last_name, password, is_admin, source, oa_id):
+
+        hashed_password = cls.hash_password(password)
+
         is_admin = bool(is_admin)
         user = cls.query.filter_by(login=login).first()
 
         if user is None:
             # User doesn't exist, so create a new one
-            user = cls.create(login, first_name, last_name, hashed_secret, is_admin, source, oa_id)
+            user = cls.create(login, first_name, last_name, hashed_password, is_admin, source, oa_id)
         else:
             # User exists, update the existing user information
             user.first_name = first_name
             user.last_name = last_name
-            user.secret = hashed_secret
+            user.secret = hashed_password
             user.is_admin = is_admin
             user.source = source
             user.oa_id = oa_id
@@ -107,12 +127,14 @@ class Users(db.Model):
         return user
 
     @classmethod
-    def authenticate(cls, login, secret):
-        if secret == '' or secret is None:
+    def authenticate(cls, login, password):
+        if password == '' or password is None:
             return False
 
+        hashed_password = cls.hash_password(password)
+
         user = cls.query.filter(cls.login == login,
-                                cls.secret == secret).first()
+                                cls.secret == hashed_password).first()
         if user is not None:
             payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
             encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')

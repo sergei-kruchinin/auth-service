@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import os
 from functools import wraps
 
@@ -78,18 +77,14 @@ def auth():
         return {'success': False, 'message': 'No input data provided'}, 400
 
     login = json_data.get("login")
-    user_secret_input = json_data.get("password")
+    password = json_data.get("password")
 
     # fix bug if no login or password in json
-    if login is None or user_secret_input is None:
+    if login is None or password is None:
         return {'success': False, 'message': 'login or password not specified'}
 
-    # the user secret in the database is "hashed" with a one-way hash
-    hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
-    hashed_user_secret = hash_object.hexdigest()
-
     # make a call to the model to authenticate
-    authentication = Users.authenticate(login, hashed_user_secret)
+    authentication = Users.authenticate(login, password)
     if not authentication:
         return {'success': False}
     else:
@@ -138,40 +133,34 @@ def auth_yandex_post():
 
     # Request to Yandex API to get user info
     response = requests.get(yandex_url, headers=headers)
-    if response.status_code == 200:
-        user_info = response.json()
-        oa_id = user_info.get('id')
-        # yandex_login = user_info.get('login')
-        # user_sex = user_info.get('sex')
-        # user_birthday = user_info.get('birthday')
+    if response.status_code != 200:
+        return {'error': 'Unable to retrieve user data'}, 400
 
-        # user_email = user_info.get('default_email')
-        # user_full_name = user_info.get('real_name')
-        first_name = user_info.get('first_name')
-        last_name = user_info.get('last_name')
-        source = "yandex"
-        login = f"{source}:{oa_id}"
-        hashed_user_secret = None
-        is_admin = False
+    user_info = response.json()
+    oa_id = user_info.get('id')
+    # yandex_login = user_info.get('login')
+    # user_sex = user_info.get('sex')
+    # user_birthday = user_info.get('birthday')
 
-        # add to our database
-        update_response = Users.create_or_update(login, first_name, last_name, hashed_user_secret, is_admin, source,
+    # user_email = user_info.get('default_email')
+    # user_full_name = user_info.get('real_name')
+    first_name = user_info.get('first_name')
+    last_name = user_info.get('last_name')
+    source = "yandex"
+    login = f"{source}:{oa_id}"
+    password = None
+    is_admin = False
+    # add to our database
+    update_response = Users.create_or_update(login, first_name, last_name, password, is_admin, source,
                                                  oa_id)
-        if update_response:
-            authentication = Users.authenticate_oauth(login)
-            if not authentication:
-                return {'success': False}
-            else:
-                return authentication, 200
-
+    if update_response:
+        authentication = Users.authenticate_oauth(login)
+        if not authentication:
+            return {'success': False}
         else:
-            return {'success': False, 'message': 'Could not update -- probably some fields are missing'}, 400
+            return authentication, 200
     else:
-        return {'success': False, 'message': 'Access Denied'}, 401
-        # END TO DO
-
-
-    return {'error': 'Unable to retrieve user data'}, 400
+        return {'success': False, 'message': 'Could not update -- probably some fields are missing'}, 400
 
 
 # Frontend imitation for testing Yandex OAuth 2.0
@@ -251,17 +240,13 @@ def users_create(_, verification):
         if last_name == '' or last_name is None:
             last_name = 'system'
 
-        user_secret_input = json_data.get("password")
+        password = json_data.get("password")
         is_admin = json_data.get("is_admin")
         if is_admin == '' or is_admin is None:
             is_admin = False
 
-        # the user secret in the database is "hashed" with a one-way hash
-        hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
-        hashed_user_secret = hash_object.hexdigest()
-
         # make a call to the model to create user
-        create_response = Users.create(login, first_name, last_name, hashed_user_secret, is_admin)
+        create_response = Users.create(login, first_name, last_name, password, is_admin)
         if create_response:
             return {'success': create_response}, 201
         else:
@@ -288,17 +273,13 @@ def users_update(_, verification):
         if last_name == '' or last_name is None:
             last_name = 'system'
 
-        user_secret_input = json_data.get("password")
+        password = json_data.get("password")
         is_admin = json_data.get("is_admin")
         if is_admin == '' or is_admin is None:
             is_admin = False
 
-        # the user secret in the database is "hashed" with a one-way hash
-        hash_object = hashlib.sha1(bytes(user_secret_input, 'utf-8'))
-        hashed_user_secret = hash_object.hexdigest()
-
         # make a call to the model to update user
-        update_response = Users.create_or_update(login, first_name, last_name, hashed_user_secret, is_admin)
+        update_response = Users.create_or_update(login, first_name, last_name, password, is_admin)
         if update_response:
             return {'success': True}, 200
         else:
