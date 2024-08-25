@@ -1,10 +1,10 @@
-import hashlib
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import jwt
 from flask import jsonify
+from passlib.context import CryptContext
 from sqlalchemy.sql import func
 
 from . import db
@@ -54,22 +54,33 @@ class Users(db.Model):
         db.DateTime(timezone=True),
         onupdate=func.now()
     )
+    pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-    @staticmethod
-    def hash_password(password):
+    # Generate salted hash from password
+    @classmethod
+    def generate_password_hash(cls, password):
+        return cls.pwd_context.hash(password)
+
+    # Check equals of hashed password and presented password
+    @classmethod
+    def check_password_hash(cls, hashed_password, plain_password):
+        return cls.pwd_context.verify(plain_password, hashed_password)
+
+    @classmethod
+    def generate_password_hash_or_none(cls, password):
         if password is None:
             return None
-        elif isinstance(password, str):
-            hash_object = hashlib.sha1(bytes(password, 'utf-8'))
-            return hash_object.hexdigest()
-        else:
+        try:
+            return cls.generate_password_hash(password)
+        except AttributeError:
             raise TypeError("Password should be a string")
 
     @classmethod
     def list(cls):
         users = cls.query.all()
-        if users:
-            user_data = [{
+
+        user_data = [
+            {
                 "id": user.id,
                 'login': user.login,
                 "first_name": user.first_name,
@@ -77,17 +88,15 @@ class Users(db.Model):
                 "is_admin": user.is_admin,
                 'source': user.source,
                 'oa_id': user.oa_id
-            }
-                for user in users
-            ]
-            return jsonify(user_data)
-        else:
-            return {'success': False}
+            } for user in users
+        ]
+
+        return jsonify(user_data) if user_data else {'success': False}
 
     @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
 
-        hashed_password = cls.hash_password(password)
+        hashed_password = cls.generate_password_hash_or_none(password)
 
         is_admin = bool(is_admin)
         try:
@@ -106,7 +115,7 @@ class Users(db.Model):
     @classmethod
     def create_or_update(cls, login, first_name, last_name, password, is_admin, source, oa_id):
 
-        hashed_password = cls.hash_password(password)
+        hashed_password = cls.generate_password_hash_or_none(password)
 
         is_admin = bool(is_admin)
         user = cls.query.filter_by(login=login).first()
@@ -128,20 +137,21 @@ class Users(db.Model):
 
     @classmethod
     def authenticate(cls, login, password):
-        if password == '' or password is None:
-            return False
+        if not password:
+               return {'success': False, 'message': 'Not Authenticated'}, 401
 
-        hashed_password = cls.hash_password(password)
+        user = cls.query.filter(cls.login == login).first()
 
-        user = cls.query.filter(cls.login == login,
-                                cls.secret == hashed_password).first()
-        if user is not None:
-            payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
-            encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
-            response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
-            return response.__dict__
-        else:
-            return False
+        if user is None or not cls.check_password_hash(user.secret, password):
+               return {'success': False, 'message': 'Not Authenticated'}, 401
+
+        payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
+        encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
+        response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
+
+        return response.__dict__, 200
+
+
 
     @classmethod
     def authenticate_oauth(cls, login):
