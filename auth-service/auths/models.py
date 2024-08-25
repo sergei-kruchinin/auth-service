@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from flask import jsonify
+import json
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 
@@ -91,7 +91,8 @@ class Users(db.Model):
             } for user in users
         ]
 
-        return jsonify(user_data) if user_data else {'success': False}
+        return json.dumps(user_data, ensure_ascii=False) if user_data else {'success': False}  # For debug
+        # return json.dumps(user_data) if user_data else {'success': False}  # For production
 
     @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
