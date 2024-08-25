@@ -1,9 +1,9 @@
+import json
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import jwt
-import json
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 
@@ -11,6 +11,14 @@ from . import db
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
+
+
+class AuthenticationError(Exception):
+    pass
+
+class DatabaseError(Exception):
+    pass
+
 
 
 @dataclass
@@ -130,8 +138,8 @@ class Users(db.Model):
             user.last_name = last_name
             user.secret = hashed_password
             user.is_admin = is_admin
-            user.source = source
-            user.oa_id = oa_id
+            # user.source = source  #  Not changeable information
+            # user.oa_id = oa_id    #  Not changeable information
             db.session.commit()
 
         return user
@@ -139,32 +147,32 @@ class Users(db.Model):
     @classmethod
     def authenticate(cls, login, password):
         if not password:
-               return {'success': False, 'message': 'Not Authenticated'}, 401
+            raise AuthenticationError('Not Authenticated')
 
         user = cls.query.filter(cls.login == login).first()
 
         if user is None or not cls.check_password_hash(user.secret, password):
-               return {'success': False, 'message': 'Not Authenticated'}, 401
+            raise AuthenticationError('Not Authenticated')
 
         payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
         encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
         response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
 
-        return response.__dict__, 200
-
+        return response.__dict__
 
 
     @classmethod
     def authenticate_oauth(cls, login):
         user = cls.query.filter_by(login=login).first()
 
-        if user is not None:
-            payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
-            encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
-            response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
-            return response.__dict__
+        if user is None:
+            raise DatabaseError('Error while syncking from social service has occured')
 
-        return False
+        payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
+        encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
+        response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
+        return response.__dict__
+
 
     @staticmethod
     def auth_verify(token):

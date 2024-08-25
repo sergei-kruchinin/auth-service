@@ -1,12 +1,11 @@
 import base64
-import os
 from functools import wraps
 
 import requests
 from flask import request
 
 from . import app
-from .models import Users, Blacklist
+from .models import *
 from .yandex_html import *
 
 
@@ -34,30 +33,41 @@ def token_required(f):
 
 # if invalid json, return json error, not html
 @app.errorhandler(400)
-def bad_request(error):
+def bad_request(_):
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
 
 
 # if not found
 @app.errorhandler(404)
-def not_found(error):
+def not_found(_):
     return {'success': False, 'message': 'Resource not found'}, 404
 
 
 # if invalid method, return json error, not html
 @app.errorhandler(405)
-def invalid_method(error):
+def invalid_method(_):
     return {'success': False, 'message': 'Invalid method sent'}, 405
 
 
 @app.errorhandler(500)
-def server_error(error):
+def server_error(_):
     return {'success': False, 'message': 'Server error'}, 500
 
 
 @app.errorhandler(415)
-def invalid_mediatype(error):
+def invalid_mediatype(_):
     return {'success': False, 'message': 'Unsupported media type'}, 415
+
+
+@app.errorhandler(AuthenticationError)
+def handle_auth_error(e):
+    return {'message': str(e)}, 401
+
+
+@app.errorhandler(DatabaseError)
+def handle_database_error(e):
+    return {'message': str(e)}, 500  # 500 is the status code for Internal Server Error
+
 
 # TODO: add HTTP codes to routes' return
 
