@@ -78,7 +78,7 @@ def site_root():
     return '<html><body>hello world</body></html>'
 
 
-# API Route for checking the user_id and user_secret
+# API Route for checking login and password
 @app.route("/auth", methods=["POST"])
 def auth():
     # get the user_id and secret from the client application
@@ -91,14 +91,13 @@ def auth():
 
     # fix bug if no login or password in json
     if login is None or password is None:
-        return {'success': False, 'message': 'login or password not specified'}
+        return {'success': False, 'message': 'login or password not specified'}, 400
 
-    # make a call to the model to authenticate
+    # If authentication fails, this will raise an AuthenticationError
+    # which will be caught by the error handler and a proper JSON response will be formed.
     authentication = Users.authenticate(login, password)
-    if not authentication:
-        return {'success': False}
-    else:
-        return authentication
+
+    return authentication, 200
 
 
 # API route for verifying the token passed by API calls
@@ -262,7 +261,7 @@ def users_create(_, verification):
         else:
             return {'success': False, 'message': 'Could not create -- probably some fields are missings'}, 400
     else:
-        return {'success': False, 'message': 'Access Denied'}, 401
+        return {'success': False, 'message': 'Access Denied'}, 403
 
 
 

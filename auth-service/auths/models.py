@@ -16,9 +16,25 @@ EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 class AuthenticationError(Exception):
     pass
 
-class DatabaseError(Exception):
+
+class TokenError(AuthenticationError):  # now a subclass of AuthenticationError
     pass
 
+
+class TokenBlacklisted(TokenError):
+    pass
+
+
+class TokenExpired(TokenError):
+    pass
+
+
+class TokenInvalid(TokenError):
+    pass
+
+
+class DatabaseError(Exception):
+    pass
 
 
 @dataclass
@@ -119,7 +135,7 @@ class Users(db.Model):
             db.session.rollback()
             return False
 
-    # Method for using by OAuth 2.0 authorizatiob
+    # Method for using by OAuth 2.0 authorization
     # May be to do: source and oa_id params.
     @classmethod
     def create_or_update(cls, login, first_name, last_name, password, is_admin, source, oa_id):
@@ -147,12 +163,12 @@ class Users(db.Model):
     @classmethod
     def authenticate(cls, login, password):
         if not password:
-            raise AuthenticationError('Not Authenticated')
+            raise AuthenticationError('Invalid login or password')
 
         user = cls.query.filter(cls.login == login).first()
 
         if user is None or not cls.check_password_hash(user.secret, password):
-            raise AuthenticationError('Not Authenticated')
+            raise AuthenticationError('Invalid login or password')
 
         payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
         encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
@@ -173,19 +189,19 @@ class Users(db.Model):
         response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
         return response.__dict__
 
-
     @staticmethod
     def auth_verify(token):
         if Blacklist.is_blacklisted(token):
-            return {"success": False, "message": "Token invalidated. Get new one"}
+            raise TokenBlacklisted("Token invalidated. Get new one")
         else:
             try:
                 decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
                 return decoded
             except jwt.ExpiredSignatureError:
-                return {"success": False, "message": "Token expired. Get new one"}
+                raise TokenExpired("Token expired. Get new one")
             except jwt.InvalidTokenError:
-                return {"success": False, "message": "Invalid Token"}
+                raise TokenInvalid("Invalid token")
+
 
     def __repr__(self):
         return f'User {self.login}'
