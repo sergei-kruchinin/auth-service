@@ -138,7 +138,7 @@ class Users(db.Model):
     # Method for using by OAuth 2.0 authorization
     # May be to do: source and oa_id params.
     @classmethod
-    def create_or_update(cls, login, first_name, last_name, password, is_admin, source, oa_id):
+    def create_or_update(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
 
         hashed_password = cls.generate_password_hash_or_none(password)
 
@@ -158,7 +158,7 @@ class Users(db.Model):
             # user.oa_id = oa_id    #  Not changeable information
             db.session.commit()
 
-        return user
+        return True
 
     @classmethod
     def authenticate(cls, login, password):

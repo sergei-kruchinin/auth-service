@@ -8,6 +8,13 @@ from . import app
 from .models import *
 from .yandex_html import *
 
+class ValidationError(Exception):
+    pass
+
+
+class AdminRequiredError(Exception):
+    pass
+
 
 # decorator for token verification
 def token_required(f):
@@ -63,6 +70,13 @@ def invalid_mediatype(_):
 def handle_auth_error(e):
     return {'message': str(e)}, 401
 
+@app.errorhandler(ValidationError)
+def handle_validation_error(e):
+    return {'message': str(e)}, 400
+
+@app.errorhandler(AdminRequiredError)
+def handle_admin_required_error(e):
+    return {'message': str(e)}, 403
 
 @app.errorhandler(DatabaseError)
 def handle_database_error(e):
@@ -160,8 +174,7 @@ def auth_yandex_post():
     password = None
     is_admin = False
     # add to our database
-    update_response = Users.create_or_update(login, first_name, last_name, password, is_admin, source,
-                                                 oa_id)
+    update_response = Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
     if update_response:
         authentication = Users.authenticate_oauth(login)
         if not authentication:
@@ -233,68 +246,66 @@ def logout(token, verification):
 # TODO is_system and source and source_id usage in routes and methods
 
 
-# API route to create the new user
+# Create system user
 @app.route("/users", methods=["POST"])
 @token_required
 def users_create(_, verification):
-    if verification.get("is_admin"):
-        # get the client_id and secret from the client application
-        json_data = request.get_json()
-        login = json_data.get("login")
-        first_name = json_data.get("first_name")
-        last_name = json_data.get("last_name")
-        # compability
-        if first_name == '' or first_name is None:
-            first_name = login
-        if last_name == '' or last_name is None:
-            last_name = 'system'
+    if not verification.get("is_admin"):
+        raise AdminRequiredError("Access Denied")
 
-        password = json_data.get("password")
-        is_admin = json_data.get("is_admin")
-        if is_admin == '' or is_admin is None:
-            is_admin = False
+    json_data = request.get_json()
+    if json_data is None:
+        raise ValidationError("No input data provided")
 
-        # make a call to the model to create user
-        create_response = Users.create(login, first_name, last_name, password, is_admin)
-        if create_response:
-            return {'success': create_response}, 201
-        else:
-            return {'success': False, 'message': 'Could not create -- probably some fields are missings'}, 400
+    login = json_data.get("login")
+    first_name = json_data.get("first_name", login)
+    last_name = json_data.get("last_name", "system")
+    password = json_data.get("password")
+    is_admin = bool(json_data.get("is_admin"))
+
+    if not all([login, first_name, last_name, password]):
+        raise ValidationError("Missing fields in data")
+
+    create_response = Users.create(login, first_name, last_name, password, is_admin)
+
+    if create_response:
+        return {'success': create_response}, 201
     else:
-        return {'success': False, 'message': 'Access Denied'}, 403
+        return {'success': False, 'message': 'Could not create user'}, 400
 
 
 
 # Route only for testing method
-# Delete after pdating /auth/yandex/callback and adding using this method there
+# Delete after updating /auth/yandex/callback and adding using this method there
 @app.route("/users_update", methods=["POST"])
 @token_required
 def users_update(_, verification):
-    if verification.get("is_admin"):
-        # get the data from the client application
-        json_data = request.get_json()
-        login = json_data.get("login")
-        first_name = json_data.get("first_name")
-        last_name = json_data.get("last_name")
+    if not verification.get("is_admin"):
+        raise AdminRequiredError("Access Denied")
 
-        if first_name == '' or first_name is None:
-            first_name = login
-        if last_name == '' or last_name is None:
-            last_name = 'system'
+    json_data = request.get_json()
+    if json_data is None:
+        raise ValidationError("No input data provided")
 
-        password = json_data.get("password")
-        is_admin = json_data.get("is_admin")
-        if is_admin == '' or is_admin is None:
-            is_admin = False
+    login = json_data.get("login")
+    first_name = json_data.get("first_name", login)
+    last_name = json_data.get("last_name", "system")
+    password = json_data.get("password")
+    is_admin = bool(json_data.get("is_admin"))
+    # source = json_data.get("source")
+    # oa_id = json_data.get("oa_id")
 
-        # make a call to the model to update user
-        update_response = Users.create_or_update(login, first_name, last_name, password, is_admin)
-        if update_response:
-            return {'success': True}, 200
-        else:
-            return {'success': False, 'message': 'Could not update -- probably some fields are missing'}, 400
+    if not all([login, first_name, last_name, password]):
+        raise ValidationError("Missing fields in data")
+
+    update_response = Users.create_or_update(login, first_name, last_name, password, is_admin)
+
+    if update_response:
+        return {'success':  update_response}, 200
     else:
-        return {'success': False, 'message': 'Access Denied'}, 401
+        return {'success': False, 'message': 'Could not update'}, 400
+
+
 
 
 # DUMMY for API route to delete user (if is_admin)
