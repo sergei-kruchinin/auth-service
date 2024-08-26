@@ -266,12 +266,10 @@ def users_create(_, verification):
     if not all([login, first_name, last_name, password]):
         raise ValidationError("Missing fields in data")
 
-    create_response = Users.create(login, first_name, last_name, password, is_admin)
+    Users.create(login, first_name, last_name, password, is_admin)
 
-    if create_response:
-        return {'success': create_response}, 201
-    else:
-        return {'success': False, 'message': 'Could not create user'}, 400
+    return {'success': True}, 201
+
 
 
 

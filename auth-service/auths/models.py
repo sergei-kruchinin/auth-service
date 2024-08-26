@@ -120,20 +120,18 @@ class Users(db.Model):
 
     @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
-
         hashed_password = cls.generate_password_hash_or_none(password)
-
         is_admin = bool(is_admin)
         try:
-
             new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_password,
                            is_admin=is_admin, source=source, oa_id=oa_id)
             db.session.add(new_user)
             db.session.commit()
             return True
-        except Exception:
+        except Exception as e:
             db.session.rollback()
-            return False
+            raise DatabaseError("There was an error while creating a user") from e
+
 
     # Method for using by OAuth 2.0 authorization
     # May be to do: source and oa_id params.
