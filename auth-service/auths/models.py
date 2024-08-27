@@ -119,6 +119,28 @@ class Users(db.Model):
         # return json.dumps(user_data) if user_data else {'success': False}  # For production
 
     @classmethod
+    def list(cls):
+        try:
+            users = cls.query.all()
+
+            user_data = [
+                {
+                    "id": user.id,
+                    'login': user.login,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_admin": user.is_admin,
+                    'source': user.source,
+                    'oa_id': user.oa_id
+                } for user in users
+            ]
+
+            return json.dumps(user_data, ensure_ascii=False)
+        except Exception as e:
+            raise DatabaseError("There was an error while retrieving users") from e
+
+
+    @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
         hashed_password = cls.generate_password_hash_or_none(password)
         is_admin = bool(is_admin)
@@ -127,7 +149,7 @@ class Users(db.Model):
                            is_admin=is_admin, source=source, oa_id=oa_id)
             db.session.add(new_user)
             db.session.commit()
-            return True
+            return new_user
         except Exception as e:
             db.session.rollback()
             raise DatabaseError("There was an error while creating a user") from e
@@ -143,20 +165,23 @@ class Users(db.Model):
         is_admin = bool(is_admin)
         user = cls.query.filter_by(login=login).first()
 
-        if user is None:
-            # User doesn't exist, so create a new one
-            user = cls.create(login, first_name, last_name, hashed_password, is_admin, source, oa_id)
-        else:
-            # User exists, update the existing user information
-            user.first_name = first_name
-            user.last_name = last_name
-            user.secret = hashed_password
-            user.is_admin = is_admin
-            # user.source = source  #  Not changeable information
-            # user.oa_id = oa_id    #  Not changeable information
-            db.session.commit()
+        try:
+            if user is None:
+                # User doesn't exist, so create a new one
+                user = cls.create(login, first_name, last_name, hashed_password, is_admin, source, oa_id)
+                return user
+            else:
+                # User exists, update the existing user information with the new details
+                user.first_name = first_name
+                user.last_name = last_name
+                user.secret = hashed_password
+                user.is_admin = is_admin
 
-        return True
+                db.session.commit()
+                return user
+        except Exception as e:
+            db.session.rollback()
+            raise DatabaseError("There was an error while updating the user") from e
 
     @classmethod
     def authenticate(cls, login, password):
@@ -180,7 +205,7 @@ class Users(db.Model):
         user = cls.query.filter_by(login=login).first()
 
         if user is None:
-            raise DatabaseError('Error while syncking from social service has occured')
+            raise DatabaseError('Error occurred while syncing from social service')
 
         payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
         encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
@@ -216,10 +241,7 @@ class Blacklist(db.Model):
 
     @classmethod
     def is_blacklisted(cls, token):
-        if cls.query.get(token):
-            return True
-        else:
-            return False
+        return bool(cls.query.get(token))
 
     def __repr__(self):
         return f'In blacklist: {self.token}'

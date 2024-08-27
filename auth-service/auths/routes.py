@@ -24,6 +24,14 @@ class TokenPrefixNotSupportedError(ValidationError):
 class AdminRequiredError(Exception):
     pass
 
+class NoDataProvided(Exception):
+    """Raised when there is no input data provided."""
+    pass
+
+class InsufficientData(AuthenticationError):
+    """Raised when there is insufficient data (login or password missing)."""
+    pass
+
 
 # Flask errorhandlers
 
@@ -55,7 +63,6 @@ def invalid_mediatype(_):
     return {'success': False, 'message': 'Unsupported media type'}, 415
 
 # My Error handlers
-
 @app.errorhandler(AuthenticationError)
 def handle_auth_error(e):
     return {'message': str(e)}, 401
@@ -63,7 +70,7 @@ def handle_auth_error(e):
 
 @app.errorhandler(ValidationError)
 def handle_validation_error(e):
-    return {'message': str(e)}, 401
+    return {'message': str(e)}, 401 # or 400?
 
 
 @app.errorhandler(AdminRequiredError)
@@ -74,6 +81,10 @@ def handle_admin_required_error(e):
 @app.errorhandler(DatabaseError)
 def handle_database_error(e):
     return {'message': str(e)}, 500  # 500 is the status code for Internal Server Error
+
+@app.errorhandler(NoDataProvided)
+def handle_no_data_provided(e):
+    return {'success': False, 'message': str(e)}, 400
 
 
 # decorator for token verification
@@ -109,14 +120,14 @@ def auth():
     # get the user_id and secret from the client application
     json_data = request.get_json()
     if json_data is None:
-        return {'success': False, 'message': 'No input data provided'}, 400
+        raise NoDataProvided('No input data provided')
 
     login = json_data.get("login")
     password = json_data.get("password")
 
     # fix bug if no login or password in json
     if login is None or password is None:
-        return {'success': False, 'message': 'login or password not specified'}, 400
+        raise InsufficientData('login or password not specified')
 
     # If authentication fails, this will raise an AuthenticationError
     # which will be caught by the error handler and a proper JSON response will be formed.
@@ -215,15 +226,15 @@ def generate_yandex_iframe_uri():
 
 
 # API route returns URI for yandex page for authorization -- for REST API client
-@app.route("/auth/yandex/bycode", methods=["GET"])
-def auth_yandex_bycode():
+@app.route("/auth/yandex/by_code", methods=["GET"])
+def auth_yandex_by_code():
     iframe_uri = generate_yandex_iframe_uri()
     return {'iframe_uri': iframe_uri}
 
 
 # HTML sugar for easy testing
-@app.route("/auth/yandex/bycode.html", methods=["GET"])
-def auth_yandex_bycode_html():
+@app.route("/auth/yandex/by_code.html", methods=["GET"])
+def auth_yandex_by_code_html():
     iframe_uri = generate_yandex_iframe_uri()
     return f'<a href="{iframe_uri}">{iframe_uri}</a>'
 
@@ -303,12 +314,10 @@ def users_update(_, verification):
     if not all([login, first_name, last_name, password]):
         raise ValidationError("Missing fields in data")
 
-    update_response = Users.create_or_update(login, first_name, last_name, password, is_admin)
+    Users.create_or_update(login, first_name, last_name, password, is_admin)
 
-    if update_response:
-        return {'success':  update_response}, 200
-    else:
-        return {'success': False, 'message': 'Could not update'}, 400
+    return {'success':  True}, 200
+
 
 
 # DUMMY for API route to delete user (if is_admin)
@@ -326,4 +335,4 @@ def users_list(_, verification):
     if verification.get("is_admin"):
         return Users.list()
     else:
-        return {'success': False, 'message': 'Access Denied'}
+        raise handle_admin_required_error('Access Denied')
