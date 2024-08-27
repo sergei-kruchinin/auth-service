@@ -8,7 +8,16 @@ from . import app
 from .models import *
 from .yandex_html import *
 
+
 class ValidationError(Exception):
+    pass
+
+
+class HeaderNotSpecifiedError(ValidationError):
+    pass
+
+
+class TokenPrefixNotSupportedError(ValidationError):
     pass
 
 
@@ -16,27 +25,7 @@ class AdminRequiredError(Exception):
     pass
 
 
-# decorator for token verification
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        authorization_header = request.headers.get('authorization')
-
-        # fix bug where no token
-        if authorization_header is None:
-            return {'success': False, 'message': 'header not specified'}
-
-        prefix = "Bearer "
-        if authorization_header.startswith(prefix):
-            token = authorization_header[len(prefix):]
-        else:
-            return {'success': False, 'message': 'token prefix not supported'}
-
-        verification = Users.auth_verify(token)
-        return f(token, verification, *args, **kwargs)
-
-    return decorated
-
+# Flask errorhandlers
 
 # if invalid json, return json error, not html
 @app.errorhandler(400)
@@ -65,25 +54,47 @@ def server_error(_):
 def invalid_mediatype(_):
     return {'success': False, 'message': 'Unsupported media type'}, 415
 
+# My Error handlers
 
 @app.errorhandler(AuthenticationError)
 def handle_auth_error(e):
     return {'message': str(e)}, 401
 
+
 @app.errorhandler(ValidationError)
 def handle_validation_error(e):
-    return {'message': str(e)}, 400
+    return {'message': str(e)}, 401
+
 
 @app.errorhandler(AdminRequiredError)
 def handle_admin_required_error(e):
     return {'message': str(e)}, 403
+
 
 @app.errorhandler(DatabaseError)
 def handle_database_error(e):
     return {'message': str(e)}, 500  # 500 is the status code for Internal Server Error
 
 
-# TODO: add HTTP codes to routes' return
+# decorator for token verification
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        authorization_header = request.headers.get('authorization')
+
+        # raise exception where no token
+        if authorization_header is None:
+            raise HeaderNotSpecifiedError('header not specified')
+
+        prefix = "Bearer "
+        if not authorization_header.startswith(prefix):
+            raise TokenPrefixNotSupportedError('token prefix not supported')
+
+        token = authorization_header[len(prefix):]
+        verification = Users.auth_verify(token)
+        return f(token, verification, *args, **kwargs)
+
+    return decorated
 
 
 # HTML / dummy
@@ -120,6 +131,7 @@ def auth():
 def verify(_, verification):
     # verify the token
     return verification
+
 
 # API Callback to get token and receive data from yandex
 @app.route("/auth/yandex/callback", methods=["POST", "GET"])
@@ -224,9 +236,6 @@ def auth_yandex_callback_html():
     return auth_yandex_callback_html_code(callback_uri)
 
 
-
-
-
 # API route for token revocation
 @app.route("/logout", methods=["POST"])
 @token_required
@@ -271,8 +280,6 @@ def users_create(_, verification):
     return {'success': True}, 201
 
 
-
-
 # Route only for testing method
 # Delete after updating /auth/yandex/callback and adding using this method there
 @app.route("/users_update", methods=["POST"])
@@ -302,8 +309,6 @@ def users_update(_, verification):
         return {'success':  update_response}, 200
     else:
         return {'success': False, 'message': 'Could not update'}, 400
-
-
 
 
 # DUMMY for API route to delete user (if is_admin)
