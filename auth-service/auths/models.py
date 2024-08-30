@@ -1,23 +1,23 @@
 import json
 import os
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import jwt
 from passlib.context import CryptContext
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.sql import func
-
 from . import db
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 
 
+# Exception Classes
 class AuthenticationError(Exception):
     pass
 
 
-class TokenError(AuthenticationError):  # now a subclass of AuthenticationError
+class TokenError(AuthenticationError):
     pass
 
 
@@ -36,27 +36,20 @@ class TokenInvalid(TokenError):
 class DatabaseError(Exception):
     pass
 
-
-@dataclass
-class AuthPayload:
+# Pydantic models
+class AuthPayload(BaseModel):
     id: int
     login: str
     first_name: str
     last_name: str
     is_admin: bool
-    exp: datetime
-
-    def __init__(self, id, login, first_name, last_name, is_admin):
-        self.id = id
-        self.login = login
-        self.first_name = first_name
-        self.last_name = last_name
-        self.is_admin = is_admin
-        self.exp = datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS)
+    exp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS))
 
 
-@dataclass
-class AuthResponse:
+
+
+
+class AuthResponse(BaseModel):
     token: str
     expires_in: int
 
@@ -99,24 +92,6 @@ class Users(db.Model):
         except AttributeError:
             raise TypeError("Password should be a string")
 
-    @classmethod
-    def list(cls):
-        users = cls.query.all()
-
-        user_data = [
-            {
-                "id": user.id,
-                'login': user.login,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "is_admin": user.is_admin,
-                'source': user.source,
-                'oa_id': user.oa_id
-            } for user in users
-        ]
-
-        return json.dumps(user_data, ensure_ascii=False) if user_data else {'success': False}  # For debug
-        # return json.dumps(user_data) if user_data else {'success': False}  # For production
 
     @classmethod
     def list(cls):
@@ -139,7 +114,6 @@ class Users(db.Model):
         except Exception as e:
             raise DatabaseError("There was an error while retrieving users") from e
 
-
     @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
         hashed_password = cls.generate_password_hash_or_none(password)
@@ -153,7 +127,6 @@ class Users(db.Model):
         except Exception as e:
             db.session.rollback()
             raise DatabaseError("There was an error while creating a user") from e
-
 
     # Method for using by OAuth 2.0 authorization
     # May be to do: source and oa_id params.
@@ -193,12 +166,11 @@ class Users(db.Model):
         if user is None or not cls.check_password_hash(user.secret, password):
             raise AuthenticationError('Invalid login or password')
 
-        payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
-        encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
-        response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
+        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name, is_admin=user.is_admin)
+        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
+        response = AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
 
-        return response.__dict__
-
+        return response.dict()
 
     @classmethod
     def authenticate_oauth(cls, login):
@@ -207,10 +179,10 @@ class Users(db.Model):
         if user is None:
             raise DatabaseError('Error occurred while syncing from social service')
 
-        payload = AuthPayload(user.id, user.login, user.first_name, user.last_name, user.is_admin)
-        encoded_jwt = jwt.encode(payload.__dict__, AUTH_SECRET, algorithm='HS256')
-        response = AuthResponse(encoded_jwt, EXPIRES_SECONDS)
-        return response.__dict__
+        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name, is_admin=user.is_admin)
+        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
+        response = AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
+        return response.dict()
 
     @staticmethod
     def auth_verify(token):
@@ -224,7 +196,6 @@ class Users(db.Model):
                 raise TokenExpired("Token expired. Get new one")
             except jwt.InvalidTokenError:
                 raise TokenInvalid("Invalid token")
-
 
     def __repr__(self):
         return f'User {self.login}'
