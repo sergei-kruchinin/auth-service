@@ -12,7 +12,6 @@ from .yandex_html import *
 class ValidationError(Exception):
     pass
 
-
 class HeaderNotSpecifiedError(ValidationError):
     pass
 
@@ -24,13 +23,30 @@ class TokenPrefixNotSupportedError(ValidationError):
 class AdminRequiredError(Exception):
     pass
 
+
 class NoDataProvided(Exception):
     """Raised when there is no input data provided."""
     pass
 
+
 class InsufficientData(AuthenticationError):
     """Raised when there is insufficient data (login or password missing)."""
     pass
+
+
+class OAuthServerError(Exception):
+    pass
+
+
+class OAuthTokenRetrievalError(OAuthServerError):
+    pass
+
+
+class OAuthUserDataRetrievalError(OAuthServerError):
+    pass
+
+
+
 
 
 # Flask errorhandlers
@@ -62,6 +78,7 @@ def server_error(_):
 def invalid_mediatype(_):
     return {'success': False, 'message': 'Unsupported media type'}, 415
 
+
 # My Error handlers
 @app.errorhandler(AuthenticationError)
 def handle_auth_error(e):
@@ -82,9 +99,16 @@ def handle_admin_required_error(e):
 def handle_database_error(e):
     return {'message': str(e)}, 500  # 500 is the status code for Internal Server Error
 
+
 @app.errorhandler(NoDataProvided)
 def handle_no_data_provided(e):
     return {'success': False, 'message': str(e)}, 400
+
+
+@app.errorhandler(OAuthServerError)
+def oauth_server_error_occurred(e):
+    return {'error': str(e)}, 503
+
 
 
 # decorator for token verification
@@ -167,12 +191,13 @@ def auth_yandex_post():
             try:
                 json_response = response.json()
             except requests.exceptions.JSONDecodeError:
-                return {'error': 'Response could not be decoded as JSON.'}, 400
+                raise OAuthServerError('Yandex response could not be decoded as JSON.')
 
             if response.status_code == 200:
                 token = json_response.get('access_token')
             else:
-                return {'error': 'Unable to retrieve access_token'}, 400
+                raise OAuthTokenRetrievalError('Unable to retrieve access_token')
+
 
     headers = {'Authorization': f'OAuth {token}'}
     yandex_url = 'https://login.yandex.ru/info'
@@ -180,7 +205,7 @@ def auth_yandex_post():
     # Request to Yandex API to get user info
     response = requests.get(yandex_url, headers=headers)
     if response.status_code != 200:
-        return {'error': 'Unable to retrieve user data'}, 400
+        raise OAuthUserDataRetrievalError('Unable to retrieve user data')
 
     user_info = response.json()
     oa_id = user_info.get('id')
@@ -196,16 +221,11 @@ def auth_yandex_post():
     login = f"{source}:{oa_id}"
     password = None
     is_admin = False
-    # add to our database
-    update_response = Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
-    if update_response:
-        authentication = Users.authenticate_oauth(login)
-        if not authentication:
-            return {'success': False}
-        else:
-            return authentication, 200
-    else:
-        return {'success': False, 'message': 'Could not update -- probably some fields are missing'}, 400
+    # add to our database (or update)
+    Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
+    authentication = Users.authenticate_oauth(login)
+    return authentication, 200
+
 
 
 # Frontend imitation for testing Yandex OAuth 2.0
@@ -335,4 +355,4 @@ def users_list(_, verification):
     if verification.get("is_admin"):
         return Users.list()
     else:
-        raise handle_admin_required_error('Access Denied')
+        raise AdminRequiredError('Access Denied')
