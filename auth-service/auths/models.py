@@ -156,6 +156,15 @@ class Users(db.Model):
             db.session.rollback()
             raise DatabaseError("There was an error while updating the user") from e
 
+
+    @staticmethod
+    def _generate_token(user):
+        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
+                              is_admin=user.is_admin)
+        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
+        response = AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
+        return response.dict()
+
     @classmethod
     def authenticate(cls, login, password):
         if not password:
@@ -165,12 +174,8 @@ class Users(db.Model):
 
         if user is None or not cls.check_password_hash(user.secret, password):
             raise AuthenticationError('Invalid login or password')
+        return cls._generate_token(user)
 
-        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name, is_admin=user.is_admin)
-        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
-        response = AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
-
-        return response.dict()
 
     @classmethod
     def authenticate_oauth(cls, login):
@@ -179,10 +184,7 @@ class Users(db.Model):
         if user is None:
             raise DatabaseError('Error occurred while syncing from social service')
 
-        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name, is_admin=user.is_admin)
-        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
-        response = AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
-        return response.dict()
+        return cls._generate_token(user)
 
     @staticmethod
     def auth_verify(token):
