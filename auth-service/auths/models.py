@@ -110,7 +110,7 @@ class Users(db.Model):
                 } for user in users
             ]
 
-            return json.dumps(user_data, ensure_ascii=False)
+            return {'users': user_data}
         except Exception as e:
             raise DatabaseError("There was an error while retrieving users") from e
 
