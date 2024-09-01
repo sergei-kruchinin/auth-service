@@ -7,6 +7,7 @@ from flask import request
 from . import app
 from .models import *
 from .yandex_html import *
+from requests.exceptions import SSLError, ConnectionError
 
 
 class CustomValidationError(Exception):
@@ -47,11 +48,7 @@ class OAuthUserDataRetrievalError(OAuthServerError):
     pass
 
 
-
-
-
-# Flask errorhandlers
-
+# Flask error handlers
 # if invalid json, return json error, not html
 @app.errorhandler(400)
 def bad_request(_):
@@ -80,6 +77,21 @@ def invalid_mediatype(_):
     return {'success': False, 'message': 'Unsupported media type'}, 415
 
 
+@app.errorhandler(Exception)
+def handle_general_error(e):
+    return {'success': False, 'message': 'An unexpected error occurred: ' + str(e)}, 500
+
+
+@app.errorhandler(SSLError)
+def handle_ssl_error(_):
+    return {'success': False, 'message': 'SSL error occurred, certificate verification failed'}, 503
+
+
+@app.errorhandler(ConnectionError)
+def handle_connection_error(_):
+    return {'success': False, 'message': 'Connection error occurred, please try again later'}, 503
+
+
 # My Error handlers
 @app.errorhandler(AuthenticationError)
 def handle_auth_error(e):
@@ -88,7 +100,7 @@ def handle_auth_error(e):
 
 @app.errorhandler(CustomValidationError)
 def handle_validation_error(e):
-    return {'message': str(e)}, 401 # or 400?
+    return {'message': str(e)}, 401  # or 400?
 
 
 @app.errorhandler(AdminRequiredError)
@@ -98,7 +110,7 @@ def handle_admin_required_error(e):
 
 @app.errorhandler(DatabaseError)
 def handle_database_error(e):
-    return {'message': str(e)}, 500  # 500 is the status code for Internal Server Error
+    return {'message': str(e)}, 500  # Internal Server Error
 
 
 @app.errorhandler(NoDataProvided)
@@ -109,7 +121,6 @@ def handle_no_data_provided(e):
 @app.errorhandler(OAuthServerError)
 def oauth_server_error_occurred(e):
     return {'error': str(e)}, 503
-
 
 
 # decorator for token verification
@@ -196,27 +207,28 @@ def auth_yandex_post():
             client_id_sec_base64_encoded = base64.b64encode(client_id_sec.encode()).decode()
             headers = {'Authorization': f'Basic {client_id_sec_base64_encoded}'}
             params = {'grant_type': 'authorization_code', 'code': yandex_code}
-            response = requests.post(yandex_url, headers=headers, data=params)
             try:
-                json_response = response.json()
-            except requests.exceptions.JSONDecodeError:
-                raise OAuthServerError('Yandex response could not be decoded as JSON.')
+                response = requests.post(yandex_url, headers=headers, data=params)
+                response.raise_for_status()
+                try:
+                    json_response = response.json()
+                except requests.exceptions.JSONDecodeError:
+                    raise OAuthServerError('Yandex response could not be decoded as JSON.')
+            except requests.exceptions.RequestException as e:
+                raise OAuthServerError(f'Yandex OAuth error: {str(e)}')
 
-            if response.status_code == 200:
-                token = json_response.get('access_token')
-            else:
-                raise OAuthTokenRetrievalError('Unable to retrieve access_token')
-
+            token = json_response.get('access_token')
 
     headers = {'Authorization': f'OAuth {token}'}
     yandex_url = 'https://login.yandex.ru/info'
 
     # Request to Yandex API to get user info
-    response = requests.get(yandex_url, headers=headers)
-    if response.status_code != 200:
-        raise OAuthUserDataRetrievalError('Unable to retrieve user data')
-
-    user_info = response.json()
+    try:
+        response = requests.get(yandex_url, headers=headers)
+        response.raise_for_status()  # Поднятие HTTPError для плохих ответов
+        user_info = response.json()
+    except requests.exceptions.RequestException as e:  # Добавлено
+        raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}')
     oa_id = user_info.get('id')
     # yandex_login = user_info.get('login')
     # user_sex = user_info.get('sex')
@@ -231,10 +243,16 @@ def auth_yandex_post():
     password = None
     is_admin = False
     # add to our database (or update)
-    Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
-    authentication = Users.authenticate_oauth(login)
-    return authentication, 200
+    try:
+        Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
+    except DatabaseError as e:
+        raise DatabaseError("There was an error while syncing the user from yandex") from e
+    try:
+        authentication = Users.authenticate_oauth(login)
+    except DatabaseError as e:
+        raise DatabaseError("There was an error while syncing the user from yandex") from e
 
+    return authentication, 200
 
 
 # Frontend imitation for testing Yandex OAuth 2.0
@@ -315,7 +333,10 @@ def users_create(_, verification):
     if not all([login, first_name, last_name, password]):
         raise CustomValidationError("Missing fields in data")
 
-    Users.create(login, first_name, last_name, password, is_admin)
+    try:
+        Users.create(login, first_name, last_name, password, is_admin)
+    except DatabaseError as e:
+        raise DatabaseError("There was an error while creating a user") from e
 
     return {'success': True}, 201
 
@@ -342,11 +363,12 @@ def users_update(_, verification):
 
     if not all([login, first_name, last_name, password]):
         raise CustomValidationError("Missing fields in data")
-
-    Users.create_or_update(login, first_name, last_name, password, is_admin)
+    try:
+        Users.create_or_update(login, first_name, last_name, password, is_admin)
+    except DatabaseError as e:
+        raise DatabaseError("There was an error while creating a user") from e
 
     return {'success':  True}, 200
-
 
 
 # DUMMY for API route to delete user (if is_admin)
@@ -361,7 +383,11 @@ def users_delete():
 @app.route("/users", methods=["GET"])
 @token_required
 def users_list(_, verification):
-    if verification.get("is_admin"):
-        return Users.list()
-    else:
+    if not verification.get("is_admin"):
         raise AdminRequiredError('Access Denied')
+    try:
+        users_list_json = Users.list()
+    except DatabaseError as e:
+        raise DatabaseError("There was an error while retrieving the users list") from e
+
+    return users_list_json
