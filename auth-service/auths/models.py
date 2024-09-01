@@ -99,7 +99,6 @@ class Users(db.Model):
         except AttributeError:
             raise TypeError("Password should be a string")
 
-
     @classmethod
     def list(cls):
         try:
@@ -136,7 +135,8 @@ class Users(db.Model):
             raise DatabaseError("There was an error while creating a user") from e
 
     # Method for using by OAuth 2.0 authorization
-    # May be to do: source and oa_id params.
+    # It's always updates user data from OAuth Provider,
+    # if the first authorization -- create user data at database
     @classmethod
     def create_or_update(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
 
@@ -163,7 +163,6 @@ class Users(db.Model):
             db.session.rollback()
             raise DatabaseError("There was an error while updating the user") from e
 
-
     @staticmethod
     def _generate_token(user):
         payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
@@ -183,7 +182,6 @@ class Users(db.Model):
             raise AuthenticationError('Invalid login or invalid password')
         return cls._generate_token(user)
 
-
     @classmethod
     def authenticate_oauth(cls, login):
         user = cls.query.filter_by(login=login).first()
@@ -197,14 +195,14 @@ class Users(db.Model):
     def auth_verify(token):
         if Blacklist.is_blacklisted(token):
             raise TokenBlacklisted("Token invalidated.")
-        else:
-            try:
-                decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
-                return decoded
-            except jwt.ExpiredSignatureError:
-                raise TokenExpired("Token expired.")
-            except jwt.InvalidTokenError:
-                raise TokenInvalid("Invalid token")
+
+        try:
+            decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
+            return decoded
+        except jwt.ExpiredSignatureError:
+            raise TokenExpired("Token expired.")
+        except jwt.InvalidTokenError:
+            raise TokenInvalid("Invalid token")
 
     def __repr__(self):
         return f'User {self.login}'
