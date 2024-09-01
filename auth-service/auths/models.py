@@ -175,12 +175,12 @@ class Users(db.Model):
     @classmethod
     def authenticate(cls, login, password):
         if not password:
-            raise AuthenticationError('Invalid login or password')
+            raise AuthenticationError('Password not specified')
 
         user = cls.query.filter(cls.login == login).first()
 
         if user is None or not cls.check_password_hash(user.secret, password):
-            raise AuthenticationError('Invalid login or password')
+            raise AuthenticationError('Invalid login or invalid password')
         return cls._generate_token(user)
 
 
@@ -196,13 +196,13 @@ class Users(db.Model):
     @staticmethod
     def auth_verify(token):
         if Blacklist.is_blacklisted(token):
-            raise TokenBlacklisted("Token invalidated. Get new one")
+            raise TokenBlacklisted("Token invalidated.")
         else:
             try:
                 decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
                 return decoded
             except jwt.ExpiredSignatureError:
-                raise TokenExpired("Token expired. Get new one")
+                raise TokenExpired("Token expired.")
             except jwt.InvalidTokenError:
                 raise TokenInvalid("Invalid token")
 

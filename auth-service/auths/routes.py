@@ -12,6 +12,7 @@ from .yandex_html import *
 class CustomValidationError(Exception):
     pass
 
+
 class HeaderNotSpecifiedError(CustomValidationError):
     pass
 
@@ -126,7 +127,15 @@ def token_required(f):
             raise TokenPrefixNotSupportedError('token prefix not supported')
 
         token = authorization_header[len(prefix):]
-        verification = Users.auth_verify(token)
+        try:
+            verification = Users.auth_verify(token)
+        except TokenBlacklisted as e:
+            raise TokenBlacklisted("Token invalidated. Get new one") from e
+        except TokenExpired as e:
+            raise TokenExpired("Token expired. Get new one") from e
+        except TokenInvalid as e:
+            raise TokenInvalid("Invalid token") from e
+
         return f(token, verification, *args, **kwargs)
 
     return decorated
@@ -151,8 +160,11 @@ def auth():
         raise InsufficientData('login or password not specified') from e
 
     # If authentication fails, this will raise an AuthenticationError
-    # which will be caught by the error handler and a proper JSON response will be formed.
-    authentication = Users.authenticate(auth_request.login, auth_request.password)
+    # which will be caught by the error handler and a proper JSON response will be forme
+    try:
+        authentication = Users.authenticate(auth_request.login, auth_request.password)
+    except AuthenticationError as e:
+        raise AuthenticationError('Invalid login or password') from e
 
     return authentication, 200
 
