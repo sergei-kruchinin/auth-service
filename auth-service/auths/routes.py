@@ -18,10 +18,6 @@ class HeaderNotSpecifiedError(CustomValidationError):
     pass
 
 
-class TokenPrefixNotSupportedError(CustomValidationError):
-    pass
-
-
 class AdminRequiredError(Exception):
     pass
 
@@ -128,14 +124,9 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         authorization_header = request.headers.get('authorization')
-
-        # raise exception where no token
-        if authorization_header is None:
-            raise HeaderNotSpecifiedError('header not specified')
-
-        prefix = "Bearer "
-        if not authorization_header.startswith(prefix):
-            raise TokenPrefixNotSupportedError('token prefix not supported')
+        prefix='Bearer '
+        if not authorization_header or not authorization_header.startswith(prefix):
+            raise HeaderNotSpecifiedError('Header not specified or prefix not supported.')
 
         token = authorization_header[len(prefix):]
         try:
@@ -163,7 +154,7 @@ def site_root():
 def auth():
     # get the user_id and secret from the client application
     json_data = request.get_json()
-    if json_data is None:
+    if not json_data:
         raise NoDataProvided('No input data provided')
     try:
         auth_request = AuthRequest(**json_data)
@@ -321,7 +312,7 @@ def users_create(_, verification):
         raise AdminRequiredError("Access Denied")
 
     json_data = request.get_json()
-    if json_data is None:
+    if not json_data:
         raise CustomValidationError("No input data provided")
 
     login = json_data.get("login")
@@ -350,7 +341,7 @@ def users_update(_, verification):
         raise AdminRequiredError("Access Denied")
 
     json_data = request.get_json()
-    if json_data is None:
+    if not json_data:
         raise CustomValidationError("No input data provided")
 
     login = json_data.get("login")
