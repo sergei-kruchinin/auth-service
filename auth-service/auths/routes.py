@@ -9,14 +9,14 @@ from .models import *
 from .yandex_html import *
 
 
-class ValidationError(Exception):
+class CustomValidationError(Exception):
     pass
 
-class HeaderNotSpecifiedError(ValidationError):
+class HeaderNotSpecifiedError(CustomValidationError):
     pass
 
 
-class TokenPrefixNotSupportedError(ValidationError):
+class TokenPrefixNotSupportedError(CustomValidationError):
     pass
 
 
@@ -85,7 +85,7 @@ def handle_auth_error(e):
     return {'message': str(e)}, 401
 
 
-@app.errorhandler(ValidationError)
+@app.errorhandler(CustomValidationError)
 def handle_validation_error(e):
     return {'message': str(e)}, 401 # or 400?
 
@@ -145,17 +145,14 @@ def auth():
     json_data = request.get_json()
     if json_data is None:
         raise NoDataProvided('No input data provided')
-
-    login = json_data.get("login")
-    password = json_data.get("password")
-
-    # fix bug if no login or password in json
-    if login is None or password is None:
-        raise InsufficientData('login or password not specified')
+    try:
+        auth_request = AuthRequest(**json_data)
+    except ValidationError as e:
+        raise InsufficientData('login or password not specified') from e
 
     # If authentication fails, this will raise an AuthenticationError
     # which will be caught by the error handler and a proper JSON response will be formed.
-    authentication = Users.authenticate(login, password)
+    authentication = Users.authenticate(auth_request.login, auth_request.password)
 
     return authentication, 200
 
@@ -295,7 +292,7 @@ def users_create(_, verification):
 
     json_data = request.get_json()
     if json_data is None:
-        raise ValidationError("No input data provided")
+        raise CustomValidationError("No input data provided")
 
     login = json_data.get("login")
     first_name = json_data.get("first_name", login)
@@ -304,7 +301,7 @@ def users_create(_, verification):
     is_admin = bool(json_data.get("is_admin"))
 
     if not all([login, first_name, last_name, password]):
-        raise ValidationError("Missing fields in data")
+        raise CustomValidationError("Missing fields in data")
 
     Users.create(login, first_name, last_name, password, is_admin)
 
@@ -321,7 +318,7 @@ def users_update(_, verification):
 
     json_data = request.get_json()
     if json_data is None:
-        raise ValidationError("No input data provided")
+        raise CustomValidationError("No input data provided")
 
     login = json_data.get("login")
     first_name = json_data.get("first_name", login)
@@ -332,7 +329,7 @@ def users_update(_, verification):
     # oa_id = json_data.get("oa_id")
 
     if not all([login, first_name, last_name, password]):
-        raise ValidationError("Missing fields in data")
+        raise CustomValidationError("Missing fields in data")
 
     Users.create_or_update(login, first_name, last_name, password, is_admin)
 
