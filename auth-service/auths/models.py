@@ -1,13 +1,11 @@
 import os
-from datetime import datetime, timedelta, timezone
+
 
 import jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, Field, constr, field_validator, ValidationError
 from sqlalchemy.sql import func
-
 from . import db
-
+from .schemas import AuthPayload, AuthResponse
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 
@@ -41,24 +39,6 @@ class DatabaseException(Exception):
     pass
 
 
-# Pydantic models
-class AuthPayload(BaseModel):
-    id: int
-    login: str
-    first_name: str
-    last_name: str
-    is_admin: bool
-    exp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS))
-
-
-class AuthResponse(BaseModel):
-    token: str
-    expires_in: int
-
-
-class AuthRequest(BaseModel):
-    login: constr(min_length=3, strip_whitespace=True)
-    password: constr(min_length=8, strip_whitespace=True)
 
 
 class Users(db.Model):

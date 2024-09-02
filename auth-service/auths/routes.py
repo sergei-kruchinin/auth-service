@@ -2,12 +2,15 @@ import base64
 from functools import wraps
 
 import requests
+from requests.exceptions import SSLError, ConnectionError
+
 from flask import request
 
 from . import app
 from .models import *
 from .yandex_html import *
-from requests.exceptions import SSLError, ConnectionError
+from .schemas import AuthRequest
+from pydantic import ValidationError
 
 
 class CustomValidationError(Exception):
@@ -56,6 +59,9 @@ def bad_request(_):
 def not_found(_):
     return {'success': False, 'message': 'Resource not found'}, 404
 
+@app.errorhandler(ValidationError)
+def handle_pydantic_validation_error(e):
+    return {'message': str(e)}, 400
 
 # if invalid method, return json error, not html
 @app.errorhandler(405)
@@ -288,9 +294,6 @@ def auth_yandex_post():
     return authentication, 200
 
 
-
-
-# Yandex OAuth 2.0 Authorization by Code support almost without frontend (only for yandex form if it's needed)
 def generate_yandex_iframe_uri():
     yandex_id = os.getenv('YANDEX_ID')
     iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
