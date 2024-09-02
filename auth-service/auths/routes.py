@@ -124,7 +124,7 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         authorization_header = request.headers.get('authorization')
-        prefix='Bearer '
+        prefix = 'Bearer '
         if not authorization_header or not authorization_header.startswith(prefix):
             raise HeaderNotSpecifiedError('Header not specified or prefix not supported.')
 
@@ -143,15 +143,36 @@ def token_required(f):
     return decorated
 
 
-# HTML / dummy
 @app.route("/", methods=["GET"])
 def site_root():
+    """
+    Root route for the application (Temporary/Dummy)
+
+    Method: GET
+
+    Returns:
+    200: HTML page with "hello world".
+    """
     return '<html><body>hello world</body></html>'
 
 
-# API Route for checking login and password
 @app.route("/auth", methods=["POST"])
 def auth():
+    """
+    Route for authenticating a user.
+
+    Request body:
+    {
+        "login": "<login>",
+        "password": "<password>"
+    }
+
+    Returns:
+    200: {'token': '<token>', 'expires_in': <expires_in>}
+    400: If no data is provided
+    401: For invalid login/password
+    """
+
     # get the user_id and secret from the client application
     json_data = request.get_json()
     if not json_data:
@@ -171,18 +192,39 @@ def auth():
     return authentication, 200
 
 
-# API route for verifying the token passed by API calls
 @app.route("/verify", methods=["POST"])
 @token_required
 def verify(_, verification):
-    # verify the token
+    """
+    Route for verifying an authentication token.
+
+    Method: POST
+
+    Headers:
+    - Authorization: Bearer <token>
+
+    Returns:
+    200: JSON containing verification status
+    401: For invalid or expired tokens
+    """
     return verification
 
 
-# API Callback to get token and receive data from yandex
 @app.route("/auth/yandex/callback", methods=["POST", "GET"])
 def auth_yandex_post():
+    """
+    Route for handling Yandex OAuth callback.
 
+    Methods: POST, GET
+
+    Request parameters:
+    - token (POST, JSON): The OAuth token
+    - code (GET, query parameter): The authorization code from Yandex
+
+    Returns:
+    200: JSON containing authentication token
+    503: If there's an OAuth or user data retrieval error
+    """
     if request.method == 'POST':
         token = request.json.get('token')
     else:
@@ -246,14 +288,6 @@ def auth_yandex_post():
     return authentication, 200
 
 
-# Frontend imitation for testing Yandex OAuth 2.0
-@app.route("/auth/yandex.html", methods=["GET"])
-def auth_yandex_html():
-    yandex_id = os.getenv('YANDEX_ID')
-    api_domain = os.getenv('API_DOMAIN')
-    redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
-    callback_uri = f"https://{api_domain}/auth/yandex/callback"
-    return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
 
 
 # Yandex OAuth 2.0 Authorization by Code support almost without frontend (only for yandex form if it's needed)
@@ -263,32 +297,35 @@ def generate_yandex_iframe_uri():
     return iframe_uri
 
 
-# API route returns URI for yandex page for authorization -- for REST API client
 @app.route("/auth/yandex/by_code", methods=["GET"])
 def auth_yandex_by_code():
+    """
+    Route for generating Yandex OAuth authorization URI.
+
+    Method: GET
+
+    Returns:
+    200: JSON containing the iframe URI
+    """
     iframe_uri = generate_yandex_iframe_uri()
     return {'iframe_uri': iframe_uri}
 
 
-# HTML sugar for easy testing
-@app.route("/auth/yandex/by_code.html", methods=["GET"])
-def auth_yandex_by_code_html():
-    iframe_uri = generate_yandex_iframe_uri()
-    return f'<a href="{iframe_uri}">{iframe_uri}</a>'
 
-
-# Frontend imitation helper page (to get token from yandex) and send to frontend auth_yandex_html page
-@app.route("/auth/yandex/callback.html", methods=["GET"])
-def auth_yandex_callback_html():
-    api_domain = os.getenv('API_DOMAIN')
-    callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
-    return auth_yandex_callback_html_code(callback_uri)
-
-
-# API route for token revocation
 @app.route("/logout", methods=["POST"])
 @token_required
 def logout(token, verification):
+    """
+    Route for logging out a user and invalidating the token.
+
+    Method: POST
+
+    Headers:
+    - Authorization: Bearer <token>
+
+    Returns:
+    200: {'success': True, 'message': <message>}
+    """
     if verification.get('success') is False:  # if verifications return json data success 'll be Null
         message = verification.get('message')
         status = True
@@ -301,13 +338,36 @@ def logout(token, verification):
 
 
 # TODO make a logout from all devices
+# TODO make a list of login devices, needed it for logout
 # TODO is_system and source and source_id usage in routes and methods
 
 
-# Create system user
 @app.route("/users", methods=["POST"])
 @token_required
 def users_create(_, verification):
+    """
+    Route for creating a new user (admin only).
+
+    Method: POST
+
+    Headers:
+    - Authorization: Bearer <admin_token>
+
+    Request body (JSON):
+    {
+        "login": "<login>",
+        "first_name": "<first_name>",
+        "last_name": "<last_name>",
+        "password": "<password>",
+        "is_admin": <true/false>
+    }
+
+    Returns:
+    201: {'success': True}
+    400: If input data is invalid
+    403: If user is not an admin
+    500: If there's an error creating the user
+    """
     if not verification.get("is_admin"):
         raise AdminRequiredError("Access Denied")
 
@@ -332,11 +392,35 @@ def users_create(_, verification):
     return {'success': True}, 201
 
 
-# Route only for testing method
-# Delete after updating /auth/yandex/callback and adding using this method there
 @app.route("/users_update", methods=["POST"])
 @token_required
 def users_update(_, verification):
+    """
+    Route for updating user data (admin only).
+    Only for testing method create_or_update (it's for /auth/yandex/callback) not for regular usage.
+    It should be different method PUT /users for data update and PATCH /users for password update
+    Should be deleted in future
+
+    Method: POST
+
+    Headers:
+    - Authorization: Bearer <admin_token>
+
+    Request body (JSON):
+    {
+     "login": "<login>",
+     "first_name": "<first_name>",
+     "last_name": "<last_name>",
+     "password": "<password>",
+     "is_admin": <true/false>
+     }
+
+     Returns:
+     200: {'success': True}
+     400: If input data is invalid
+     403: If user is not an admin
+     500: If there's an error updating the user
+     """
     if not verification.get("is_admin"):
         raise AdminRequiredError("Access Denied")
 
@@ -362,18 +446,39 @@ def users_update(_, verification):
     return {'success':  True}, 200
 
 
-# DUMMY for API route to delete user (if is_admin)
 @app.route("/users", methods=["DELETE"])
 @token_required
 def users_delete():
-    # not yet implemented
+    """
+    Route for deleting a user (if is_admin): not yet implemented.
+
+    Method: DELETE
+
+    Headers:
+    - Authorization: Bearer <admin_token>
+
+    Returns:
+    501: {'success': False}
+    """
     return {'success': False}
 
 
-# API route to get users list
 @app.route("/users", methods=["GET"])
 @token_required
 def users_list(_, verification):
+    """
+    Route for retrieving the list of users (admin only).
+
+    Method: GET
+
+    Headers:
+    - Authorization: Bearer <admin_token>
+
+    Returns:
+    200: JSON containing the list of users
+    403: If user is not an admin
+    500: If there's an error retrieving the list
+    """
     if not verification.get("is_admin"):
         raise AdminRequiredError('Access Denied')
     try:
@@ -382,3 +487,51 @@ def users_list(_, verification):
         raise DatabaseError("There was an error while retrieving the users list") from e
 
     return users_list_json
+
+
+# Frontend routes for testing Yandex OAuth 2.0
+@app.route("/auth/yandex/by_code.html", methods=["GET"])
+def auth_yandex_by_code_html():
+    """
+    Route for displaying the link to Yandex OAuth authorization page.
+
+    Method: GET
+
+    Returns:
+    200: HTML link to Yandex OAuth iframe URI
+    """
+    iframe_uri = generate_yandex_iframe_uri()
+    return f'<a href="{iframe_uri}">{iframe_uri}</a>'
+
+
+@app.route("/auth/yandex.html", methods=["GET"])
+def auth_yandex_html():
+    """
+    Route for displaying the Yandex OAuth authorization page.
+
+    Method: GET
+
+    Returns:
+    200: HTML page for Yandex OAuth
+    """
+    yandex_id = os.getenv('YANDEX_ID')
+    api_domain = os.getenv('API_DOMAIN')
+    redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
+    callback_uri = f"https://{api_domain}/auth/yandex/callback"
+    return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
+
+
+@app.route("/auth/yandex/callback.html", methods=["GET"])
+def auth_yandex_callback_html():
+    """
+    Route for handling Yandex OAuth callback and presenting a helper page.
+
+    Method: GET
+
+    Returns:
+    200: HTML page for Yandex OAuth callback
+    """
+
+    api_domain = os.getenv('API_DOMAIN')
+    callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
+    return auth_yandex_callback_html_code(callback_uri)
