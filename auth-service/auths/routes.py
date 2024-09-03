@@ -9,7 +9,7 @@ from flask import request
 from . import app
 from .models import *
 from .yandex_html import *
-from .schemas import AuthRequest
+from .schemas import AuthRequest, UserCreateSchema
 from pydantic import ValidationError
 
 
@@ -48,24 +48,27 @@ class OAuthUserDataRetrievalError(OAuthServerError):
 
 
 # Flask error handlers
-# if invalid json, return json error, not html
 @app.errorhandler(400)
 def bad_request(_):
+    """if invalid json, return json error, not html"""
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
 
 
-# if not found
+
 @app.errorhandler(404)
 def not_found(_):
+    """if not found route"""
     return {'success': False, 'message': 'Resource not found'}, 404
+
 
 @app.errorhandler(ValidationError)
 def handle_pydantic_validation_error(e):
     return {'message': str(e)}, 400
 
-# if invalid method, return json error, not html
+
 @app.errorhandler(405)
 def invalid_method(_):
+    """if invalid method, return json error, not html"""
     return {'success': False, 'message': 'Invalid method sent'}, 405
 
 
@@ -377,18 +380,18 @@ def users_create(_, verification):
     json_data = request.get_json()
     if not json_data:
         raise CustomValidationError("No input data provided")
-
-    login = json_data.get("login")
-    first_name = json_data.get("first_name", login)
-    last_name = json_data.get("last_name", "system")
-    password = json_data.get("password")
-    is_admin = bool(json_data.get("is_admin"))
-
-    if not all([login, first_name, last_name, password]):
-        raise CustomValidationError("Missing fields in data")
+    try:
+        user_data = UserCreateSchema(**json_data)
+    except ValidationError as e:
+        raise CustomValidationError(str(e))
 
     try:
-        Users.create(login, first_name, last_name, password, is_admin)
+        Users.create(
+            login=user_data.login,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            password=user_data.password,
+            is_admin=user_data.is_admin)
     except DatabaseError as e:
         raise DatabaseError("There was an error while creating a user") from e
 

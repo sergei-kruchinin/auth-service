@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field, constr, field_validator
 import os
 
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
+
 
 # Pydantic models
 class AuthPayload(BaseModel):
@@ -18,6 +19,16 @@ class AuthResponse(BaseModel):
     token: str
     expires_in: int
 
+
 class AuthRequest(BaseModel):
     login: constr(min_length=3, strip_whitespace=True)
     password: constr(min_length=8, strip_whitespace=True)
+
+
+class UserCreateSchema(BaseModel):
+    login: constr(min_length=3, strip_whitespace=True)
+    first_name: str = Field(default="user")
+    last_name: str = Field(default="system")
+    password: constr(min_length=8, strip_whitespace=True)
+    is_admin: bool = Field(default=False)
+
