@@ -54,7 +54,6 @@ def bad_request(_):
     return {'success': False, 'message': 'Invalid JSON sent'}, 400
 
 
-
 @app.errorhandler(404)
 def not_found(_):
     """if not found route"""
@@ -235,7 +234,7 @@ def auth_yandex_callback():
     503: If there's an OAuth or user data retrieval error
     """
 
-    def get_token_from_code(yandex_code):
+    def get_token_from_code(auth_code):
         yandex_url = 'https://oauth.yandex.ru/token'
         client_id = os.getenv('YANDEX_ID')
         client_secret = os.getenv('YANDEX_SECRET')
@@ -243,37 +242,39 @@ def auth_yandex_callback():
         client_id_sec = f'{client_id}:{client_secret}'
         client_id_sec_base64_encoded = base64.b64encode(client_id_sec.encode()).decode()
         headers = {'Authorization': f'Basic {client_id_sec_base64_encoded}'}
-        params = {'grant_type': 'authorization_code', 'code': yandex_code}
+        params = {'grant_type': 'authorization_code', 'code': auth_code}
 
         response = requests.post(yandex_url, headers=headers, data=params)
         response.raise_for_status()
         return response.json().get('access_token')
 
-    def get_user_info(token):
-        headers = {'Authorization': f'OAuth {token}'}
+    def get_user_info(access_token):
+        headers = {'Authorization': f'OAuth {access_token}'}
         yandex_url = 'https://login.yandex.ru/info'
 
         response = requests.get(yandex_url, headers=headers)
         response.raise_for_status()
         return response.json()
 
+    access_token = None
+    auth_code = None
     if request.method == 'POST':
-        token = request.json.get('token')
+        access_token = request.json.get('token')
     else:  # GET
-        token = request.args.get('token')
-        yandex_code = request.args.get('code')
+        access_token = request.args.get('token')
+        auth_code = request.args.get('code')
 
-        if token is None and yandex_code is not None:
+        if access_token is None and auth_code is not None:
             try:
-                token = get_token_from_code(yandex_code)
+                access_token = get_token_from_code(auth_code)
             except requests.exceptions.RequestException as e:
                 raise OAuthServerError(f'Yandex OAuth error: {str(e)}')
 
-    if token is None:
-        raise OAuthServerError('No token or authorization code provided')
+    if access_token is None:
+        raise OAuthServerError('Token or authorization code is missing')
 
     try:
-        user_info = get_user_info(token)
+        user_info = get_user_info(access_token)
     except requests.exceptions.RequestException as e:
         raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}')
     oa_id = user_info.get('id')
@@ -316,7 +317,6 @@ def auth_yandex_by_code():
     """
     iframe_uri = generate_yandex_iframe_uri()
     return {'iframe_uri': iframe_uri}
-
 
 
 @app.route("/logout", methods=["POST"])
