@@ -422,7 +422,9 @@ def users_update(_, verification):
      "first_name": "<first_name>",
      "last_name": "<last_name>",
      "password": "<password>",
-     "is_admin": <true/false>
+     "is_admin": <true/false>,
+     "source": "<yandex/manual>",
+     "oa_id" : <yandex_id>"
 
 
      Returns:
