@@ -39,8 +39,6 @@ class DatabaseException(Exception):
     pass
 
 
-
-
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     login = db.Column(db.String(128), unique=True, nullable=False)
@@ -101,7 +99,7 @@ class Users(db.Model):
             raise DatabaseError("There was an error while retrieving users") from e
 
     @classmethod
-    def create(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
+    def create(cls, login, first_name, last_name, password, is_admin, source, oa_id):
         hashed_password = cls.generate_password_hash_or_none(password)
         is_admin = bool(is_admin)
         try:
@@ -109,6 +107,11 @@ class Users(db.Model):
                            is_admin=is_admin, source=source, oa_id=oa_id)
             db.session.add(new_user)
             db.session.commit()
+
+            if new_user.source == 'manual' and new_user.oa_id is None:
+                new_user.oa_id = str(new_user.id)
+                db.session.commit()
+
             return new_user
         except Exception as e:
             db.session.rollback()

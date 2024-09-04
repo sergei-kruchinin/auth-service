@@ -391,7 +391,11 @@ def users_create(_, verification):
             first_name=user_data.first_name,
             last_name=user_data.last_name,
             password=user_data.password,
-            is_admin=user_data.is_admin)
+            is_admin=user_data.is_admin,
+            source=user_data.source,
+            oa_id=user_data.oa_id
+
+        )
     except DatabaseError as e:
         raise DatabaseError("There was an error while creating a user") from e
 
@@ -419,7 +423,7 @@ def users_update(_, verification):
      "last_name": "<last_name>",
      "password": "<password>",
      "is_admin": <true/false>
-     }
+
 
      Returns:
      200: {'success': True}
