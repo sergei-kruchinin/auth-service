@@ -105,7 +105,7 @@ def handle_auth_error(e):
 
 @app.errorhandler(CustomValidationError)
 def handle_validation_error(e):
-    return {'message': str(e)}, 401  # or 400?
+    return {'message': str(e)}, 400  # or 401?
 
 
 @app.errorhandler(AdminRequiredError)
@@ -366,6 +366,8 @@ def users_create(_, verification):
         "last_name": "<last_name>",
         "password": "<password>",
         "is_admin": <true/false>
+        "source": "<yandex/manual>",
+        "oa_id" : <yandex_id>"
     }
 
     Returns:
@@ -394,7 +396,6 @@ def users_create(_, verification):
             is_admin=user_data.is_admin,
             source=user_data.source,
             oa_id=user_data.oa_id
-
         )
     except DatabaseError as e:
         raise DatabaseError("There was an error while creating a user") from e
@@ -439,19 +440,21 @@ def users_update(_, verification):
     json_data = request.get_json()
     if not json_data:
         raise CustomValidationError("No input data provided")
-
-    login = json_data.get("login")
-    first_name = json_data.get("first_name", login)
-    last_name = json_data.get("last_name", "system")
-    password = json_data.get("password")
-    is_admin = bool(json_data.get("is_admin"))
-    # source = json_data.get("source")
-    # oa_id = json_data.get("oa_id")
-
-    if not all([login, first_name, last_name, password]):
-        raise CustomValidationError("Missing fields in data")
     try:
-        Users.create_or_update(login, first_name, last_name, password, is_admin)
+        user_data = UserCreateSchema(**json_data)
+    except ValidationError as e:
+        raise CustomValidationError(str(e))
+
+    try:
+        Users.create_or_update(
+            login=user_data.login,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            password=user_data.password,
+            is_admin=user_data.is_admin,
+            source=user_data.source,
+            oa_id=user_data.oa_id
+        )
     except DatabaseError as e:
         raise DatabaseError("There was an error while creating a user") from e
 
