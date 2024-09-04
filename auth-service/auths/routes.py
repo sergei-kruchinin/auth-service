@@ -220,7 +220,7 @@ def verify(_, verification):
 
 
 @app.route("/auth/yandex/callback", methods=["POST", "GET"])
-def auth_yandex_post():
+def auth_yandex_callback():
     """
     Route for handling Yandex OAuth callback.
 
@@ -234,48 +234,52 @@ def auth_yandex_post():
     200: JSON containing authentication token
     503: If there's an OAuth or user data retrieval error
     """
+
+    def get_token_from_code(yandex_code):
+        yandex_url = 'https://oauth.yandex.ru/token'
+        client_id = os.getenv('YANDEX_ID')
+        client_secret = os.getenv('YANDEX_SECRET')
+
+        client_id_sec = f'{client_id}:{client_secret}'
+        client_id_sec_base64_encoded = base64.b64encode(client_id_sec.encode()).decode()
+        headers = {'Authorization': f'Basic {client_id_sec_base64_encoded}'}
+        params = {'grant_type': 'authorization_code', 'code': yandex_code}
+
+        response = requests.post(yandex_url, headers=headers, data=params)
+        response.raise_for_status()
+        return response.json().get('access_token')
+
+    def get_user_info(token):
+        headers = {'Authorization': f'OAuth {token}'}
+        yandex_url = 'https://login.yandex.ru/info'
+
+        response = requests.get(yandex_url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
     if request.method == 'POST':
         token = request.json.get('token')
-    else:
-        # GET
+    else:  # GET
         token = request.args.get('token')
         yandex_code = request.args.get('code')
 
         if token is None and yandex_code is not None:
-            yandex_url = 'https://oauth.yandex.ru/token'
-            client_id = os.getenv('YANDEX_ID')
-            client_secret = os.getenv('YANDEX_SECRET')
-            client_id_sec = f'{client_id}:{client_secret}'
-            client_id_sec_base64_encoded = base64.b64encode(client_id_sec.encode()).decode()
-            headers = {'Authorization': f'Basic {client_id_sec_base64_encoded}'}
-            params = {'grant_type': 'authorization_code', 'code': yandex_code}
             try:
-                response = requests.post(yandex_url, headers=headers, data=params)
-                response.raise_for_status()
-                try:
-                    json_response = response.json()
-                except requests.exceptions.JSONDecodeError:
-                    raise OAuthServerError('Yandex response could not be decoded as JSON.')
+                token = get_token_from_code(yandex_code)
             except requests.exceptions.RequestException as e:
                 raise OAuthServerError(f'Yandex OAuth error: {str(e)}')
 
-            token = json_response.get('access_token')
+    if token is None:
+        raise OAuthServerError('No token or authorization code provided')
 
-    headers = {'Authorization': f'OAuth {token}'}
-    yandex_url = 'https://login.yandex.ru/info'
-
-    # Request to Yandex API to get user info
     try:
-        response = requests.get(yandex_url, headers=headers)
-        response.raise_for_status()  # Поднятие HTTPError для плохих ответов
-        user_info = response.json()
-    except requests.exceptions.RequestException as e:  # Добавлено
+        user_info = get_user_info(token)
+    except requests.exceptions.RequestException as e:
         raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}')
     oa_id = user_info.get('id')
     # yandex_login = user_info.get('login')
     # user_sex = user_info.get('sex')
     # user_birthday = user_info.get('birthday')
-
     # user_email = user_info.get('default_email')
     # user_full_name = user_info.get('real_name')
     first_name = user_info.get('first_name')
@@ -287,9 +291,6 @@ def auth_yandex_post():
     # add to our database (or update)
     try:
         Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
-    except DatabaseError as e:
-        raise DatabaseError("There was an error while syncing the user from yandex") from e
-    try:
         authentication = Users.authenticate_oauth(login)
     except DatabaseError as e:
         raise DatabaseError("There was an error while syncing the user from yandex") from e
