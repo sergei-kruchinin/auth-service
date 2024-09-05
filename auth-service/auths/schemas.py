@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, constr, model_validator, field_validator
+from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 import os
 
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
@@ -47,6 +47,18 @@ class UserCreateSchema(BaseModel):
             raise ValueError("Login must not contain the ':' character")
         return values
 
+
+class UserResponseSchema(BaseModel):
+    id: int
+    login: str
+    first_name: str | None = None
+    last_name: str | None = None
+    is_admin: bool
+    source: str
+    oa_id: str | None = None
+    # created_at: str
+    # updated_at: str | None = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class YandexUserInfo(BaseModel):

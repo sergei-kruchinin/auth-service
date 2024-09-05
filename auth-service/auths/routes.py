@@ -300,7 +300,7 @@ def users_list(_, verification):
     try:
         users_list_json = Users.list()
     except DatabaseError as e:
-        raise DatabaseError("There was an error while retrieving the users list") from e
+        raise DatabaseError(f"There was an error while retrieving the users list {str(e)}") from e
 
     return users_list_json
 

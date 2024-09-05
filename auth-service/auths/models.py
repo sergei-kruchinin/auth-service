@@ -3,7 +3,7 @@ import jwt
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthPayload, AuthResponse
+from .schemas import AuthPayload, AuthResponse, UserResponseSchema
 from .exceptions import *
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
@@ -56,22 +56,9 @@ class Users(db.Model):
     def list(cls):
         try:
             users = cls.query.all()
-
-            user_data = [
-                {
-                    "id": user.id,
-                    'login': user.login,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "is_admin": user.is_admin,
-                    'source': user.source,
-                    'oa_id': user.oa_id
-                } for user in users
-            ]
-
-            return {'users': user_data}
+            return {'users': [UserResponseSchema.from_orm(user).dict() for user in users]}
         except Exception as e:
-            raise DatabaseError("There was an error while retrieving users") from e
+            raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
     @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source, oa_id):
