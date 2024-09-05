@@ -62,7 +62,7 @@ def not_found(_):
 
 @app.errorhandler(ValidationError)
 def handle_pydantic_validation_error(e):
-    return {'message': str(e)}, 400
+    return {'success': False, 'message': str(e)}, 400
 
 
 @app.errorhandler(405)
@@ -99,22 +99,27 @@ def handle_connection_error(_):
 # My Error handlers
 @app.errorhandler(AuthenticationError)
 def handle_auth_error(e):
-    return {'message': str(e)}, 401
+    return {'success': False, 'message': str(e)}, 401
 
 
 @app.errorhandler(CustomValidationError)
 def handle_validation_error(e):
-    return {'message': str(e)}, 400  # or 401?
+    return {'success': False, 'message': str(e)}, 400  # or 401?
 
 
 @app.errorhandler(AdminRequiredError)
 def handle_admin_required_error(e):
-    return {'message': str(e)}, 403
+    return {'success': False, 'message': str(e)}, 403
+
+
+@app.errorhandler(UserAlreadyExistsError)
+def handle_user_already_exists(e):
+    return {'success': False, 'message': str(e)}, 409
 
 
 @app.errorhandler(DatabaseError)
 def handle_database_error(e):
-    return {'message': str(e)}, 500  # Internal Server Error
+    return {'success': False, 'message': str(e)}, 500  # Internal Server Error
 
 
 @app.errorhandler(NoDataProvided)
@@ -124,7 +129,7 @@ def handle_no_data_provided(e):
 
 @app.errorhandler(OAuthServerError)
 def oauth_server_error_occurred(e):
-    return {'error': str(e)}, 503
+    return {'success': False, 'error': str(e)}, 503
 
 
 # decorator for token verification
@@ -288,7 +293,7 @@ def auth_yandex_callback():
 
     # add to our database (or update)
     try:
-        user = Users.create_or_update(
+        user = Users.create_or_update_oauth_user(
             first_name=user_info.first_name,
             last_name=user_info.last_name,
             is_admin=False,
@@ -377,6 +382,7 @@ def users_create(_, verification):
     201: {'success': True}
     400: If input data is invalid
     403: If user is not an admin
+    409: If user already exists
     500: If there's an error creating the user
     """
     if not verification.get("is_admin"):
@@ -400,8 +406,11 @@ def users_create(_, verification):
             source=user_data.source,
             oa_id=user_data.oa_id
         )
+    except UserAlreadyExistsError as e:
+        raise UserAlreadyExistsError(e) from e
     except DatabaseError as e:
         raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
+
 
     return {'success': True}, 201
 

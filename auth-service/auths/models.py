@@ -39,6 +39,10 @@ class DatabaseException(Exception):
     pass
 
 
+class UserAlreadyExistsError(Exception):
+    pass
+
+
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     login = db.Column(db.String(128), unique=True, nullable=False)
@@ -104,6 +108,16 @@ class Users(db.Model):
 
     @classmethod
     def create(cls, login, first_name, last_name, password, is_admin, source, oa_id):
+        """
+          Check if user exists before creating a new user.
+
+          If user exists, raises a UserAlreadyExistsError.
+
+          Creates a new system user (not oauth)
+          """
+        if cls.query.filter_by(login=login).first():
+            raise UserAlreadyExistsError(f"User with login {login} already exists")
+
         hashed_password = cls.generate_password_hash_or_none(password)
         is_admin = bool(is_admin)
         try:
@@ -127,7 +141,7 @@ class Users(db.Model):
     # It's always updates user data from OAuth Provider,
     # if the first authorization -- create user data at database
     @classmethod
-    def create_or_update(cls, first_name, last_name, is_admin, source='manual', oa_id=None):
+    def create_or_update_oauth_user(cls, first_name, last_name, is_admin, source='manual', oa_id=None):
 
         login = cls.create_composite_login(source, oa_id)
         #  hashed_password = cls.generate_password_hash_or_none(password)
