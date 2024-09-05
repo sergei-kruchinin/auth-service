@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, constr, model_validator
+from pydantic import BaseModel, Field, constr, model_validator, field_validator
 import os
 
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
@@ -40,3 +40,16 @@ class UserCreateSchema(BaseModel):
             values['first_name'] = values.get('login')
         return values
 
+    @model_validator(mode='before')
+    def no_colon_in_login(cls, values):
+        login = values.get('login')
+        if login and ':' in login:
+            raise ValueError("Login must not contain the ':' character")
+        return values
+
+
+
+class YandexUserInfo(BaseModel):
+    id: str
+    first_name: str
+    last_name: str

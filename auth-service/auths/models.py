@@ -58,6 +58,10 @@ class Users(db.Model):
     )
     pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
+    @classmethod
+    def create_composite_login(cls, source, oa_id):
+        return f"{source}:{oa_id}"
+
     # Generate salted hash from password
     @classmethod
     def generate_password_hash(cls, password):
@@ -103,8 +107,10 @@ class Users(db.Model):
         hashed_password = cls.generate_password_hash_or_none(password)
         is_admin = bool(is_admin)
         try:
+            print(login, first_name, last_name, password, is_admin, source, oa_id)
             new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_password,
                            is_admin=is_admin, source=source, oa_id=oa_id)
+
             db.session.add(new_user)
             db.session.commit()
 
@@ -115,15 +121,16 @@ class Users(db.Model):
             return new_user
         except Exception as e:
             db.session.rollback()
-            raise DatabaseError("There was an error while creating a user") from e
+            raise DatabaseError(str(e))
 
     # Method for using by OAuth 2.0 authorization
     # It's always updates user data from OAuth Provider,
     # if the first authorization -- create user data at database
     @classmethod
-    def create_or_update(cls, login, first_name, last_name, password, is_admin, source='manual', oa_id=None):
+    def create_or_update(cls, first_name, last_name, is_admin, source='manual', oa_id=None):
 
-        hashed_password = cls.generate_password_hash_or_none(password)
+        login = cls.create_composite_login(source, oa_id)
+        #  hashed_password = cls.generate_password_hash_or_none(password)
 
         is_admin = bool(is_admin)
         user = cls.query.filter_by(login=login).first()
@@ -131,13 +138,12 @@ class Users(db.Model):
         try:
             if user is None:
                 # User doesn't exist, so create a new one
-                user = cls.create(login, first_name, last_name, hashed_password, is_admin, source, oa_id)
+                user = cls.create(login, first_name, last_name, None, is_admin, source, oa_id)
                 return user
             else:
                 # User exists, update the existing user information with the new details
                 user.first_name = first_name
                 user.last_name = last_name
-                user.secret = hashed_password
                 user.is_admin = is_admin
 
                 db.session.commit()

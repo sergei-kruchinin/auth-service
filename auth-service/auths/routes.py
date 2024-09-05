@@ -9,7 +9,7 @@ from flask import request
 from . import app
 from .models import *
 from .yandex_html import *
-from .schemas import AuthRequest, UserCreateSchema
+from .schemas import AuthRequest, UserCreateSchema, YandexUserInfo
 from pydantic import ValidationError
 
 
@@ -227,8 +227,8 @@ def auth_yandex_callback():
 
     Request parameters:
     - token (POST, JSON): The OAuth token
+    - token (GET, query parameter): The OAuth token
     - code (GET, query parameter): The authorization code from Yandex
-
     Returns:
     200: JSON containing authentication token
     503: If there's an OAuth or user data retrieval error
@@ -259,10 +259,15 @@ def auth_yandex_callback():
     access_token = None
     auth_code = None
     if request.method == 'POST':
+        # In POST requests, we always receive the token.
         access_token = request.json.get('token')
     else:  # GET
         access_token = request.args.get('token')
         auth_code = request.args.get('code')
+
+        # Token and code are never returned at the same time in GET requests.
+        # We can use GET to get either the token or the code.
+        # If we receive a code, we have to exchange it for a token.
 
         if access_token is None and auth_code is not None:
             try:
@@ -274,25 +279,22 @@ def auth_yandex_callback():
         raise OAuthServerError('Token or authorization code is missing')
 
     try:
-        user_info = get_user_info(access_token)
+        raw_user_info = get_user_info(access_token)
+        user_info = YandexUserInfo(**raw_user_info)
     except requests.exceptions.RequestException as e:
         raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}')
-    oa_id = user_info.get('id')
-    # yandex_login = user_info.get('login')
-    # user_sex = user_info.get('sex')
-    # user_birthday = user_info.get('birthday')
-    # user_email = user_info.get('default_email')
-    # user_full_name = user_info.get('real_name')
-    first_name = user_info.get('first_name')
-    last_name = user_info.get('last_name')
-    source = "yandex"
-    login = f"{source}:{oa_id}"
-    password = None
-    is_admin = False
+    except ValidationError as e:
+        raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}')
+
     # add to our database (or update)
     try:
-        Users.create_or_update(login, first_name, last_name, password, is_admin, source, oa_id)
-        authentication = Users.authenticate_oauth(login)
+        user = Users.create_or_update(
+            first_name=user_info.first_name,
+            last_name=user_info.last_name,
+            is_admin=False,
+            source='yandex',
+            oa_id=user_info.id)
+        authentication = Users.authenticate_oauth(user.login)
     except DatabaseError as e:
         raise DatabaseError("There was an error while syncing the user from yandex") from e
 
@@ -399,67 +401,9 @@ def users_create(_, verification):
             oa_id=user_data.oa_id
         )
     except DatabaseError as e:
-        raise DatabaseError("There was an error while creating a user") from e
+        raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     return {'success': True}, 201
-
-
-@app.route("/users_update", methods=["POST"])
-@token_required
-def users_update(_, verification):
-    """
-    Route for updating user data (admin only).
-    Only for testing method create_or_update (it's for /auth/yandex/callback) not for regular usage.
-    It should be different method PUT /users for data update and PATCH /users for password update
-    Should be deleted in future
-
-    Method: POST
-
-    Headers:
-    - Authorization: Bearer <admin_token>
-
-    Request body (JSON):
-    {
-     "login": "<login>",
-     "first_name": "<first_name>",
-     "last_name": "<last_name>",
-     "password": "<password>",
-     "is_admin": <true/false>,
-     "source": "<yandex/manual>",
-     "oa_id" : <yandex_id>"
-
-
-     Returns:
-     200: {'success': True}
-     400: If input data is invalid
-     403: If user is not an admin
-     500: If there's an error updating the user
-     """
-    if not verification.get("is_admin"):
-        raise AdminRequiredError("Access Denied")
-
-    json_data = request.get_json()
-    if not json_data:
-        raise CustomValidationError("No input data provided")
-    try:
-        user_data = UserCreateSchema(**json_data)
-    except ValidationError as e:
-        raise CustomValidationError(str(e))
-
-    try:
-        Users.create_or_update(
-            login=user_data.login,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            password=user_data.password,
-            is_admin=user_data.is_admin,
-            source=user_data.source,
-            oa_id=user_data.oa_id
-        )
-    except DatabaseError as e:
-        raise DatabaseError("There was an error while creating a user") from e
-
-    return {'success':  True}, 200
 
 
 @app.route("/users", methods=["DELETE"])
