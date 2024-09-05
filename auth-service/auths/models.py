@@ -1,46 +1,13 @@
 import os
-
-
 import jwt
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
 from .schemas import AuthPayload, AuthResponse
+from .exceptions import *
+
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
-
-
-# Exception Classes
-class AuthenticationError(Exception):
-    pass
-
-
-class TokenError(AuthenticationError):
-    pass
-
-
-class TokenBlacklisted(TokenError):
-    pass
-
-
-class TokenExpired(TokenError):
-    pass
-
-
-class TokenInvalid(TokenError):
-    pass
-
-
-class DatabaseError(Exception):
-    pass
-
-
-class DatabaseException(Exception):
-    pass
-
-
-class UserAlreadyExistsError(Exception):
-    pass
 
 
 class Users(db.Model):
@@ -121,7 +88,6 @@ class Users(db.Model):
         hashed_password = cls.generate_password_hash_or_none(password)
         is_admin = bool(is_admin)
         try:
-            print(login, first_name, last_name, password, is_admin, source, oa_id)
             new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_password,
                            is_admin=is_admin, source=source, oa_id=oa_id)
 

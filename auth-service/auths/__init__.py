@@ -3,12 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 from dotenv import load_dotenv
 # from flask_migrate import Migrate
-
+from .error_handlers import register_error_handlers
 # Load .env file
 load_dotenv()
 
 # instantiate the Flask app.
 app = Flask(__name__)
+app = register_error_handlers(app)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'users.db')
