@@ -2,7 +2,6 @@ import base64
 from functools import wraps
 
 import requests
-from requests.exceptions import SSLError, ConnectionError
 
 from flask import request
 
@@ -169,9 +168,9 @@ def auth_yandex_callback():
         raw_user_info = get_user_info(access_token)
         user_info = YandexUserInfo(**raw_user_info)
     except requests.exceptions.RequestException as e:
-        raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}')
+        raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}') from e
     except ValidationError as e:
-        raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}')
+        raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
 
     # add to our database (or update)
     try:
@@ -202,14 +201,18 @@ def logout(token, verification):
     Returns:
     200: {'success': True, 'message': <message>}
     """
-    if verification.get('success') is False:  # if verifications return json data success 'll be Null
-        message = verification.get('message')
+    # Till @token_required(notify_on_failure=True) be implemented,
+    # by now it not be executed. @token_required on not authenticated raises exception 401
+    # if not verification:  # if verification returned None or failed
+    #     return {'success': False, 'message': 'Invalid or expired token'}, 401
+
+    try:
+        Blacklist.add_token(token)
+        message = 'Token has been invalidated (added to blacklist).'
         status = True
-        # if already no valid nothing to do
-    else:  # Auth succeed so adding to blacklist
-        Blacklist.add_token(token)  # now it doesn't return True or False
-        status = True
-        message = 'Adding to blacklist '
+    except DatabaseError as e:
+        raise DatabaseError('Error checking if token is blacklisted') from e
+
     return {'success': status, 'message': message}
 
 
@@ -256,7 +259,7 @@ def users_create(_, verification):
     try:
         user_data = UserCreateSchema(**json_data)
     except ValidationError as e:
-        raise CustomValidationError(str(e))
+        raise CustomValidationError(str(e)) from e
 
     try:
         Users.create(

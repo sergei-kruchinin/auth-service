@@ -49,8 +49,8 @@ class Users(db.Model):
             return None
         try:
             return cls.generate_password_hash(password)
-        except AttributeError:
-            raise TypeError("Password should be a string")
+        except AttributeError as e:
+            raise TypeError("Password should be a string") from e
 
     @classmethod
     def list(cls):
@@ -101,7 +101,7 @@ class Users(db.Model):
             return new_user
         except Exception as e:
             db.session.rollback()
-            raise DatabaseError(str(e))
+            raise DatabaseError(str(e)) from e
 
     # Method for using by OAuth 2.0 authorization
     # It's always updates user data from OAuth Provider,
@@ -162,16 +162,19 @@ class Users(db.Model):
 
     @staticmethod
     def auth_verify(token):
-        if Blacklist.is_blacklisted(token):
-            raise TokenBlacklisted("Token invalidated.")
+        try:
+            if Blacklist.is_blacklisted(token):
+                raise TokenBlacklisted("Token invalidated.")
+        except DatabaseError as e:
+            raise DatabaseError('Error checking if token is blacklisted') from e
 
         try:
             decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
             return decoded
-        except jwt.ExpiredSignatureError:
-            raise TokenExpired("Token expired.")
-        except jwt.InvalidTokenError:
-            raise TokenInvalid("Invalid token")
+        except jwt.ExpiredSignatureError as e:
+            raise TokenExpired("Token expired.") from e
+        except jwt.InvalidTokenError as e:
+            raise TokenInvalid("Invalid token") from e
 
     def __repr__(self):
         return f'User {self.login}'
@@ -182,13 +185,20 @@ class Blacklist(db.Model):
 
     @classmethod
     def add_token(cls, black_token):
-        black_token_record = cls(token=black_token)
-        db.session.add(black_token_record)
-        db.session.commit()
+        try:
+            black_token_record = cls(token=black_token)
+            db.session.add(black_token_record)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
 
     @classmethod
     def is_blacklisted(cls, token):
-        return bool(cls.query.get(token))
+        try:
+            return bool(cls.query.get(token))
+        except Exception as e:
+            raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
     def __repr__(self):
         return f'In blacklist: {self.token}'
