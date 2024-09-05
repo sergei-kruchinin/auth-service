@@ -188,26 +188,6 @@ def auth_yandex_callback():
     return authentication, 200
 
 
-def generate_yandex_iframe_uri():
-    yandex_id = os.getenv('YANDEX_ID')
-    iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
-    return iframe_uri
-
-
-@app.route("/auth/yandex/by_code", methods=["GET"])
-def auth_yandex_by_code():
-    """
-    Route for generating Yandex OAuth authorization URI.
-
-    Method: GET
-
-    Returns:
-    200: JSON containing the iframe URI
-    """
-    iframe_uri = generate_yandex_iframe_uri()
-    return {'iframe_uri': iframe_uri}
-
-
 @app.route("/logout", methods=["POST"])
 @token_required
 def logout(token, verification):
@@ -296,23 +276,6 @@ def users_create(_, verification):
     return {'success': True}, 201
 
 
-@app.route("/users", methods=["DELETE"])
-@token_required
-def users_delete():
-    """
-    Route for deleting a user (if is_admin): not yet implemented.
-
-    Method: DELETE
-
-    Headers:
-    - Authorization: Bearer <admin_token>
-
-    Returns:
-    501: {'success': False}
-    """
-    return {'success': False}
-
-
 @app.route("/users", methods=["GET"])
 @token_required
 def users_list(_, verification):
@@ -337,6 +300,46 @@ def users_list(_, verification):
         raise DatabaseError("There was an error while retrieving the users list") from e
 
     return users_list_json
+
+
+@app.route("/users", methods=["DELETE"])
+@token_required
+def users_delete():
+    """
+    Route for deleting a user (if is_admin): not yet implemented.
+
+    Method: DELETE
+
+    Headers:
+    - Authorization: Bearer <admin_token>
+
+    Returns:
+    501: {'success': False}
+    """
+    return {'success': False}
+
+
+# Some helper routes
+
+
+def generate_yandex_iframe_uri():
+    yandex_id = os.getenv('YANDEX_ID')
+    iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    return iframe_uri
+
+
+@app.route("/auth/yandex/by_code", methods=["GET"])
+def auth_yandex_by_code():
+    """
+    Route for generating Yandex OAuth authorization URI.
+
+    Method: GET
+
+    Returns:
+    200: JSON containing the iframe URI
+    """
+    iframe_uri = generate_yandex_iframe_uri()
+    return {'iframe_uri': iframe_uri}
 
 
 # Frontend routes for testing Yandex OAuth 2.0
