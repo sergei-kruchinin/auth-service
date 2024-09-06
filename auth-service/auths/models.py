@@ -61,17 +61,12 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
     @classmethod
-    def create_with_check(cls, data):
+    def create(cls, data):
         """
-        Check if user exists before creating a new user.
-
+        Don't check if user exists before creating a new user.
         If user exists, raises a DatabaseError indicating user already exists.
         """
-
         validated_data = UserCreateSchema(**data)
-
-        if cls.query.filter_by(login=validated_data.login).first():
-            raise UserAlreadyExistsError(f"User with login {validated_data.login} already exists")
 
         hashed_password = cls.generate_password_hash_or_none(validated_data.password)
         is_admin = bool(validated_data.is_admin)
@@ -96,6 +91,20 @@ class Users(db.Model):
         except Exception as e:
             db.session.rollback()
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
+
+    @classmethod
+    def create_with_check(cls, data):
+        """
+        Check if user exists before creating a new user.
+
+        If user exists, raises a UserAlreadyExistsError indicating user already exists.
+        """
+        validated_data = UserCreateSchema(**data)
+
+        if cls.query.filter_by(login=validated_data.login).first():
+            raise UserAlreadyExistsError(f"User with login {validated_data.login} already exists")
+        user = cls.create(validated_data.dict())
+        return user
 
     @classmethod
     def create_or_update_oauth_user(cls, first_name, last_name, is_admin, source, oa_id):
@@ -125,7 +134,7 @@ class Users(db.Model):
                     source=source,
                     oa_id=oa_id
                 )
-                user = cls.create_with_check(user_data.dict())
+                user = cls.create(user_data.dict())
                 return user
             else:
                 # User exists, update the existing user information with the new details
