@@ -19,11 +19,11 @@ class TokenService:
 
     @staticmethod
     def add_to_blacklist(token: str):
-        Blacklist.add_token(token)
+        TokenService.Blacklist.add_token(token)
 
     @staticmethod
     def is_blacklisted(token: str) -> bool:
-        return Blacklist.is_blacklisted(token)
+        return TokenService.Blacklist.is_blacklisted(token)
 
     @staticmethod
     def verify_token(token: str) -> Dict:
@@ -37,26 +37,25 @@ class TokenService:
         except jwt.InvalidTokenError:
             raise TokenInvalid("Invalid token")
 
+    class Blacklist(db.Model):
+        token = db.Column(db.String(256), primary_key=True, nullable=False)
 
-class Blacklist(db.Model):
-    token = db.Column(db.String(256), primary_key=True, nullable=False)
+        @classmethod
+        def add_token(cls, black_token):
+            try:
+                black_token_record = cls(token=black_token)
+                db.session.add(black_token_record)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
 
-    @classmethod
-    def add_token(cls, black_token):
-        try:
-            black_token_record = cls(token=black_token)
-            db.session.add(black_token_record)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
+        @classmethod
+        def is_blacklisted(cls, token):
+            try:
+                return bool(cls.query.get(token))
+            except Exception as e:
+                raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
-    @classmethod
-    def is_blacklisted(cls, token):
-        try:
-            return bool(cls.query.get(token))
-        except Exception as e:
-            raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
-
-    def __repr__(self):
-        return f'In blacklist: {self.token}'
+        def __repr__(self):
+            return f'In blacklist: {self.token}'
