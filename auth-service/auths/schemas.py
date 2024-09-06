@@ -44,7 +44,6 @@ class OauthUserCreateSchema(UserBaseSchema):
 
 
 class UserCreateInputSchema(UserBaseSchema):
-    login: constr(min_length=3, strip_whitespace=True)
 
     @model_validator(mode='before')
     def set_first_name(cls, values):
@@ -60,14 +59,8 @@ class UserCreateInputSchema(UserBaseSchema):
         return values
 
 
-class UserResponseSchema(BaseModel):
+class UserResponseSchema(UserBaseSchema):
     id: int
-    login: str
-    first_name: str | None = None
-    last_name: str | None = None
-    is_admin: bool
-    source: str
-    oa_id: str | None = None
     # created_at: str
     # updated_at: str | None = None
     model_config = ConfigDict(from_attributes=True)
