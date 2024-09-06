@@ -11,6 +11,7 @@ from .yandex_html import *
 from .schemas import AuthRequest, UserCreateInputSchema, YandexUserInfo
 from pydantic import ValidationError
 from .exceptions import *
+from .token_service import TokenService
 
 
 # decorator for token verification
@@ -24,7 +25,7 @@ def token_required(f):
 
         token = authorization_header[len(prefix):]
         try:
-            verification = Users.auth_verify(token)
+            verification = TokenService.verify_token(token)
         except TokenBlacklisted as e:
             raise TokenBlacklisted("Token invalidated. Get new one") from e
         except TokenExpired as e:
@@ -207,7 +208,7 @@ def logout(token, verification):
     #     return {'success': False, 'message': 'Invalid or expired token'}, 401
 
     try:
-        Blacklist.add_token(token)
+        TokenService.add_to_blacklist(token)
         message = 'Token has been invalidated (added to blacklist).'
         status = True
     except DatabaseError as e:

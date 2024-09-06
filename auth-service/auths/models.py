@@ -1,10 +1,10 @@
 import os
-import jwt
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthPayload, AuthResponse, UserCreateSchema, OauthUserCreateSchema, UserResponseSchema
+from .schemas import AuthPayload, UserCreateSchema, OauthUserCreateSchema, UserResponseSchema
 from .exceptions import *
+from .token_service import TokenService
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
@@ -148,14 +148,6 @@ class Users(db.Model):
             db.session.rollback()
             raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
-    @staticmethod
-    def _generate_token(user):
-        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
-                              is_admin=user.is_admin)
-        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
-        response = AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
-        return response.dict()
-
     @classmethod
     def authenticate(cls, login, password):
         if not password:
@@ -165,7 +157,10 @@ class Users(db.Model):
 
         if user is None or not cls.check_password_hash(user.secret, password):
             raise AuthenticationError('Invalid login or invalid password')
-        return cls._generate_token(user)
+
+        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
+                              is_admin=user.is_admin)
+        return TokenService.generate_token(payload)
 
     @classmethod
     def authenticate_oauth(cls, login):
@@ -174,47 +169,9 @@ class Users(db.Model):
         if user is None:
             raise DatabaseError('Error occurred while syncing from social service')
 
-        return cls._generate_token(user)
-
-    @staticmethod
-    def auth_verify(token):
-        try:
-            if Blacklist.is_blacklisted(token):
-                raise TokenBlacklisted("Token invalidated.")
-        except DatabaseError as e:
-            raise DatabaseError('Error checking if token is blacklisted') from e
-
-        try:
-            decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
-            return decoded
-        except jwt.ExpiredSignatureError as e:
-            raise TokenExpired("Token expired.") from e
-        except jwt.InvalidTokenError as e:
-            raise TokenInvalid("Invalid token") from e
+        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
+                              is_admin=user.is_admin)
+        return TokenService.generate_token(payload)
 
     def __repr__(self):
         return f'User {self.login}'
-
-
-class Blacklist(db.Model):
-    token = db.Column(db.String(256), primary_key=True, nullable=False)
-
-    @classmethod
-    def add_token(cls, black_token):
-        try:
-            black_token_record = cls(token=black_token)
-            db.session.add(black_token_record)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
-
-    @classmethod
-    def is_blacklisted(cls, token):
-        try:
-            return bool(cls.query.get(token))
-        except Exception as e:
-            raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
-
-    def __repr__(self):
-        return f'In blacklist: {self.token}'
