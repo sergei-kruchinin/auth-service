@@ -3,7 +3,7 @@ import jwt
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthPayload, AuthResponse, UserResponseSchema
+from .schemas import AuthPayload, AuthResponse, UserCreateSchema, OauthUserCreateSchema, UserResponseSchema
 from .exceptions import *
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
@@ -61,23 +61,30 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
     @classmethod
-    def create(cls, login, first_name, last_name, password, is_admin, source, oa_id):
+    def create_with_check(cls, data):
         """
-          Check if user exists before creating a new user.
+        Check if user exists before creating a new user.
 
-          If user exists, raises a UserAlreadyExistsError.
+        If user exists, raises a DatabaseError indicating user already exists.
+        """
 
-          Creates a new system user (not oauth)
-          """
-        if cls.query.filter_by(login=login).first():
-            raise UserAlreadyExistsError(f"User with login {login} already exists")
+        validated_data = UserCreateSchema(**data)
 
-        hashed_password = cls.generate_password_hash_or_none(password)
-        is_admin = bool(is_admin)
+        if cls.query.filter_by(login=validated_data.login).first():
+            raise UserAlreadyExistsError(f"User with login {validated_data.login} already exists")
+
+        hashed_password = cls.generate_password_hash_or_none(validated_data.password)
+        is_admin = bool(validated_data.is_admin)
         try:
-            new_user = cls(login=login, first_name=first_name, last_name=last_name, secret=hashed_password,
-                           is_admin=is_admin, source=source, oa_id=oa_id)
-
+            new_user = cls(
+                login=validated_data.login,
+                first_name=validated_data.first_name,
+                last_name=validated_data.last_name,
+                secret=hashed_password,
+                is_admin=is_admin,
+                source=validated_data.source,
+                oa_id=validated_data.oa_id
+            )
             db.session.add(new_user)
             db.session.commit()
 
@@ -88,24 +95,37 @@ class Users(db.Model):
             return new_user
         except Exception as e:
             db.session.rollback()
-            raise DatabaseError(str(e)) from e
+            raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
-    # Method for using by OAuth 2.0 authorization
-    # It's always updates user data from OAuth Provider,
-    # if the first authorization -- create user data at database
     @classmethod
-    def create_or_update_oauth_user(cls, first_name, last_name, is_admin, source='manual', oa_id=None):
-
+    def create_or_update_oauth_user(cls, first_name, last_name, is_admin, source, oa_id):
+        """
+        Method for using by OAuth 2.0 authorization
+        It's always updates user data from OAuth Provider,
+        if the first authorization -- create user data at database
+        """
         login = cls.create_composite_login(source, oa_id)
         #  hashed_password = cls.generate_password_hash_or_none(password)
-
         is_admin = bool(is_admin)
+
+        # is user already in database?
         user = cls.query.filter_by(login=login).first()
 
         try:
             if user is None:
                 # User doesn't exist, so create a new one
-                user = cls.create(login, first_name, last_name, None, is_admin, source, oa_id)
+                # print(login, first_name, last_name, is_admin, source, oa_id)
+
+                user_data = OauthUserCreateSchema(
+                    login=login,
+                    first_name=first_name,
+                    last_name=last_name,
+                    password=None,  # There is no password for OAuth
+                    is_admin=is_admin,
+                    source=source,
+                    oa_id=oa_id
+                )
+                user = cls.create_with_check(user_data.dict())
                 return user
             else:
                 # User exists, update the existing user information with the new details
@@ -117,7 +137,7 @@ class Users(db.Model):
                 return user
         except Exception as e:
             db.session.rollback()
-            raise DatabaseError("There was an error while updating the user") from e
+            raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
     @staticmethod
     def _generate_token(user):

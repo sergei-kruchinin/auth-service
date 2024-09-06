@@ -25,14 +25,26 @@ class AuthRequest(BaseModel):
     password: constr(min_length=8, strip_whitespace=True)
 
 
-class UserCreateSchema(BaseModel):
+class UserBaseSchema(BaseModel):
     login: constr(min_length=3, strip_whitespace=True)
     first_name: str | None = Field(default=None)
     last_name: str = Field(default="system")
-    password: constr(min_length=8, strip_whitespace=True)
+    password: constr(min_length=8, strip_whitespace=True) | None = Field(default=None)
     is_admin: bool = Field(default=False)
     source: str = Field(default="manual")
     oa_id: str | None = Field(default=None)
+
+
+class UserCreateSchema(UserBaseSchema):
+    pass
+
+
+class OauthUserCreateSchema(UserBaseSchema):
+    pass
+
+
+class UserCreateInputSchema(UserBaseSchema):
+    login: constr(min_length=3, strip_whitespace=True)
 
     @model_validator(mode='before')
     def set_first_name(cls, values):

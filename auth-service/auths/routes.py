@@ -8,7 +8,7 @@ from flask import request
 from . import app
 from .models import *
 from .yandex_html import *
-from .schemas import AuthRequest, UserCreateSchema, YandexUserInfo
+from .schemas import AuthRequest, UserCreateInputSchema, YandexUserInfo
 from pydantic import ValidationError
 from .exceptions import *
 
@@ -182,7 +182,7 @@ def auth_yandex_callback():
             oa_id=user_info.id)
         authentication = Users.authenticate_oauth(user.login)
     except DatabaseError as e:
-        raise DatabaseError("There was an error while syncing the user from yandex") from e
+        raise DatabaseError(f"There was an error while syncing the user from yandex: {str(e)}") from e
 
     return authentication, 200
 
@@ -257,20 +257,13 @@ def users_create(_, verification):
     if not json_data:
         raise CustomValidationError("No input data provided")
     try:
-        user_data = UserCreateSchema(**json_data)
+        user_data = UserCreateInputSchema(**json_data)
     except ValidationError as e:
         raise CustomValidationError(str(e)) from e
 
     try:
-        Users.create(
-            login=user_data.login,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            password=user_data.password,
-            is_admin=user_data.is_admin,
-            source=user_data.source,
-            oa_id=user_data.oa_id
-        )
+        Users.create_with_check(user_data.dict())
+
     except UserAlreadyExistsError as e:
         raise UserAlreadyExistsError(e) from e
     except DatabaseError as e:
