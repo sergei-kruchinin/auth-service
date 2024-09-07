@@ -267,8 +267,7 @@ def users_create(_, verification):
         raise CustomValidationError(str(e)) from e
 
     try:
-        Users.create_with_check(user_data.dict())
-        # TODO Users.create_with_check(user_data)
+        Users.create_with_check(user_data)
 
     except UserAlreadyExistsError as e:
         raise UserAlreadyExistsError(e) from e

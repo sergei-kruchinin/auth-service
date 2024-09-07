@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthRequest, AuthPayload, UserCreateSchema, UserResponseSchema
+from .schemas import AuthRequest, AuthPayload, UserCreateSchema, UserCreateInputSchema, UserResponseSchema
 from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
@@ -109,13 +109,13 @@ class Users(db.Model):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def __create(cls, user_data: UserCreateSchema) -> 'Users':
+    def __create(cls, user_data: UserCreateSchema | UserCreateInputSchema) -> 'Users':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
 
         Args:
-            user_data (UserCreateSchema): The data to create a new user.
+            user_data (UserCreateSchema | UserCreateInputSchema): The data to create a new user.
 
         Returns:
             Users: The newly created user.
@@ -150,13 +150,13 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
-    def create_with_check(cls, data: dict) -> 'Users':
+    def create_with_check(cls, user_data: UserCreateInputSchema) -> 'Users':
         """
         Create a new user after checking if the user already exists.
         If user exists, raises a UserAlreadyExistsError indicating user already exists.
 
         Args:
-            data (dict): The data to create a new user.
+            user_data (dict): The data to create a new user.
 
         Returns:
             Users: The newly created user.
@@ -166,11 +166,10 @@ class Users(db.Model):
         """
         # TODO not data: dict but data:UserCreateSchema
         # TODO further: class constructor instead of method (?)
-        validated_data = UserCreateSchema(**data)
 
-        if cls.query.filter_by(login=validated_data.login).first():
-            raise UserAlreadyExistsError(f"User with login {validated_data.login} already exists")
-        user = cls.__create(validated_data)
+        if cls.query.filter_by(login=user_data.login).first():
+            raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
+        user = cls.__create(user_data)
         return user
 
     @classmethod
