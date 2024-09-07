@@ -180,7 +180,7 @@ class Users(db.Model):
             is_admin: bool,
             source: str,
             oa_id: str
-        ) -> 'Users':
+            ) -> 'Users':
         """
         Create or update a user for OAuth 2.0 authorization.
         It always updates user data from OAuth Provider,
@@ -236,7 +236,7 @@ class Users(db.Model):
     # ### 4. Authentication Methods ###
 
     @classmethod
-    def authenticate(cls, login: str, password: str) -> str:
+    def authenticate(cls, login: str, password: str) -> Dict:
         """
         Authenticate user with login and password.
 
@@ -244,8 +244,8 @@ class Users(db.Model):
             login (str): The login of the user.
             password (str): The plaintext password of the user.
 
-        Returns:
-            str: A generated token for the authenticated user.
+                Returns:
+        Dict: The generated token and expiration time.
 
         Raises:
             AuthenticationError: If login or password is invalid.
@@ -263,7 +263,7 @@ class Users(db.Model):
         return TokenService.generate_token(payload)
 
     @classmethod
-    def authenticate_oauth(cls, login: str) -> str:
+    def authenticate_oauth(cls, login: str) -> Dict:
         """
         Authenticate OAuth user with login <source:oa_id>.
 
@@ -271,7 +271,7 @@ class Users(db.Model):
             login (str): The login <source:oa_id> of the OAuth user.
 
         Returns:
-            str: A generated token for the authenticated user.
+            Dict: The generated token and expiration time.
 
         Raises:
             DatabaseError: If there is an error while syncing from social service.
