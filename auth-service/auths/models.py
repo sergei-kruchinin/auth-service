@@ -4,7 +4,7 @@ from . import db
 from .schemas import AuthPayload, UserCreateSchema, OauthUserCreateSchema, UserResponseSchema
 from .exceptions import *
 from .token_service import TokenService
-
+from typing import Dict, List
 
 
 class Users(db.Model):
@@ -29,7 +29,7 @@ class Users(db.Model):
     # ### 1. Login and Password Handling Methods ###
 
     @classmethod
-    def create_composite_login(cls, source, oa_id):
+    def create_composite_login(cls, source: str, oa_id: str) -> str:
         """
         Generate a composite login from the source and oa_id.
 
@@ -43,7 +43,7 @@ class Users(db.Model):
         return f"{source}:{oa_id}"
 
     @classmethod
-    def generate_password_hash(cls, password):
+    def generate_password_hash(cls, password: str) -> str:
         """
         Generate a salted hash from plaintext password.
 
@@ -56,7 +56,7 @@ class Users(db.Model):
         return cls.pwd_context.hash(password)
 
     @classmethod
-    def check_password_hash(cls, hashed_password, plain_password):
+    def check_password_hash(cls, hashed_password: str, plain_password: str) -> bool:
         """
         Verify if the provided plaintext password matches the hashed password.
 
@@ -70,7 +70,7 @@ class Users(db.Model):
         return cls.pwd_context.verify(plain_password, hashed_password)
 
     @classmethod
-    def generate_password_hash_or_none(cls, password):
+    def generate_password_hash_or_none(cls, password: str | None) -> str | None:
         """
         Generate a password hash or return None if the password is None.
 
@@ -90,7 +90,7 @@ class Users(db.Model):
     # ### 2. User Management Methods ###
 
     @classmethod
-    def list(cls):
+    def list(cls) -> Dict[str, List[Dict]]:
         """
         Retrieve the list of all users.
 
@@ -109,7 +109,7 @@ class Users(db.Model):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def create(cls, data):
+    def create(cls, data: dict) -> 'Users':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
@@ -151,7 +151,7 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
-    def create_with_check(cls, data):
+    def create_with_check(cls, data: dict) -> 'Users':
         """
         Create a new user after checking if the user already exists.
         If user exists, raises a UserAlreadyExistsError indicating user already exists.
@@ -173,7 +173,14 @@ class Users(db.Model):
         return user
 
     @classmethod
-    def create_or_update_oauth_user(cls, first_name, last_name, is_admin, source, oa_id):
+    def create_or_update_oauth_user(
+            cls,
+            first_name: str,
+            last_name: str,
+            is_admin: bool,
+            source: str,
+            oa_id: str
+        ) -> 'Users':
         """
         Create or update a user for OAuth 2.0 authorization.
         It always updates user data from OAuth Provider,
@@ -229,7 +236,7 @@ class Users(db.Model):
     # ### 4. Authentication Methods ###
 
     @classmethod
-    def authenticate(cls, login, password):
+    def authenticate(cls, login: str, password: str) -> str:
         """
         Authenticate user with login and password.
 
@@ -256,7 +263,7 @@ class Users(db.Model):
         return TokenService.generate_token(payload)
 
     @classmethod
-    def authenticate_oauth(cls, login):
+    def authenticate_oauth(cls, login: str) -> str:
         """
         Authenticate OAuth user with login <source:oa_id>.
 
@@ -280,7 +287,7 @@ class Users(db.Model):
 
     # ### 5. Object Representation Methods ###
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Represent user information for debugging/logging.
 
