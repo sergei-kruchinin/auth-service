@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthPayload, UserCreateSchema, OauthUserCreateSchema, UserResponseSchema
+from .schemas import AuthPayload, UserCreateSchema, UserResponseSchema
 from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
@@ -28,8 +28,8 @@ class Users(db.Model):
 
     # ### 1. Login and Password Handling Methods ###
 
-    @classmethod
-    def create_composite_login(cls, source: str, oa_id: str) -> str:
+    @staticmethod
+    def create_composite_login(source: str, oa_id: str) -> str:
         """
         Generate a composite login from the source and oa_id.
 
@@ -109,13 +109,13 @@ class Users(db.Model):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def create(cls, data: dict) -> 'Users':
+    def __create(cls, user_data: UserCreateSchema) -> 'Users':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
 
         Args:
-            data (dict): The data to create a new user.
+            user_data (UserCreateSchema): The data to create a new user.
 
         Returns:
             Users: The newly created user.
@@ -124,19 +124,18 @@ class Users(db.Model):
             DatabaseError: If there was an error while creating a user.
             UserAlreadyExistsError: If user with the login already exists.
           """
-        validated_data = UserCreateSchema(**data)
 
-        hashed_password = cls.generate_password_hash_or_none(validated_data.password)
-        is_admin = bool(validated_data.is_admin)
+        hashed_password = cls.generate_password_hash_or_none(user_data.password)
+        is_admin = bool(user_data.is_admin)
         try:
             new_user = cls(
-                login=validated_data.login,
-                first_name=validated_data.first_name,
-                last_name=validated_data.last_name,
+                login=user_data.login,
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
                 secret=hashed_password,
                 is_admin=is_admin,
-                source=validated_data.source,
-                oa_id=validated_data.oa_id
+                source=user_data.source,
+                oa_id=user_data.oa_id
             )
             db.session.add(new_user)
             db.session.commit()
@@ -165,11 +164,13 @@ class Users(db.Model):
         Raises:
             UserAlreadyExistsError: If user with the login already exists.
         """
+        # TODO not data: dict but data:UserCreateSchema
+        # TODO further: class constructor instead of method (?)
         validated_data = UserCreateSchema(**data)
 
         if cls.query.filter_by(login=validated_data.login).first():
             raise UserAlreadyExistsError(f"User with login {validated_data.login} already exists")
-        user = cls.create(validated_data.dict())
+        user = cls.__create(validated_data)
         return user
 
     @classmethod
@@ -199,6 +200,10 @@ class Users(db.Model):
         Raises:
             DatabaseError: If there was an error while updating the user.
         """
+        # TODO def create_or_update_oauth_user(cls, data: OAuthUserCreateSchema)
+        # TODO Further : Single Table Inheritance (STI) class OAuthUser
+        # and it's constructor (?)
+
         login = cls.create_composite_login(source, oa_id)
         is_admin = bool(is_admin)
 
@@ -210,7 +215,7 @@ class Users(db.Model):
                 # User doesn't exist, so create a new one
                 # print(login, first_name, last_name, is_admin, source, oa_id)
 
-                user_data = OauthUserCreateSchema(
+                user_data = UserCreateSchema(
                     login=login,
                     first_name=first_name,
                     last_name=last_name,
@@ -219,7 +224,7 @@ class Users(db.Model):
                     source=source,
                     oa_id=oa_id
                 )
-                user = cls.create(user_data.dict())
+                user = cls.__create(user_data)
                 return user
             else:
                 # User exists, update the existing user information with the new details
@@ -234,6 +239,24 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
     # ### 4. Authentication Methods ###
+
+    def __generate_auth_response(self) -> Dict:
+        """
+        Generate authentication response including JWT token and its expiration time.
+
+        Returns:
+            Dict: The generated token and expiration time.
+        """
+        payload = AuthPayload(
+            id=self.id,
+            login=self.login,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            is_admin=self.is_admin
+        )
+        auth_response = TokenService.generate_token(payload)
+        # TODO not dict, but auth_response (?)
+        return auth_response.dict()
 
     @classmethod
     def authenticate(cls, login: str, password: str) -> Dict:
@@ -250,6 +273,7 @@ class Users(db.Model):
         Raises:
             AuthenticationError: If login or password is invalid.
         """
+        # TODO not login, but AuthRequest?
         if not password:
             raise AuthenticationError('Password not specified')
 
@@ -258,32 +282,18 @@ class Users(db.Model):
         if user is None or not cls.check_password_hash(user.secret, password):
             raise AuthenticationError('Invalid login or invalid password')
 
-        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
-                              is_admin=user.is_admin)
-        return TokenService.generate_token(payload).dict()
+        return user.__generate_auth_response()
 
-    @classmethod
-    def authenticate_oauth(cls, login: str) -> Dict:
+    def authenticate_oauth(self) -> Dict:
         """
-        Authenticate OAuth user with login <source:oa_id>.
-
-        Args:
-            login (str): The login <source:oa_id> of the OAuth user.
+        Authenticate OAuth user
 
         Returns:
             Dict: The generated token and expiration time.
 
-        Raises:
-            DatabaseError: If there is an error while syncing from social service.
         """
-        user = cls.query.filter_by(login=login).first()
 
-        if user is None:
-            raise DatabaseError('Error occurred while syncing from social service')
-
-        payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
-                              is_admin=user.is_admin)
-        return TokenService.generate_token(payload).dict()
+        return self.__generate_auth_response()
 
     # ### 5. Object Representation Methods ###
 

@@ -39,10 +39,6 @@ class UserCreateSchema(UserBaseSchema):
     pass
 
 
-class OauthUserCreateSchema(UserBaseSchema):
-    pass
-
-
 class UserCreateInputSchema(UserBaseSchema):
 
     @model_validator(mode='before')

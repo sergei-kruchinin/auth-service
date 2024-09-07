@@ -82,6 +82,8 @@ def auth():
     # which will be caught by the error handler and a proper JSON response will be forme
     try:
         authentication = Users.authenticate(auth_request.login, auth_request.password)
+        # TODO authentication = Users.authenticate(auth_request)
+        #
     except AuthenticationError as e:
         raise AuthenticationError('Invalid login or password') from e
 
@@ -182,7 +184,10 @@ def auth_yandex_callback():
             is_admin=False,
             source='yandex',
             oa_id=user_info.id)
-        authentication = Users.authenticate_oauth(user.login)
+        # TODO Users.create_or_update_oauth_user(user_data: OauthUserCreateSchema)
+
+        authentication = user.authenticate_oauth()
+
     except DatabaseError as e:
         raise DatabaseError(f"There was an error while syncing the user from yandex: {str(e)}") from e
 
@@ -220,7 +225,7 @@ def logout(token, verification):
 
 # TODO make a logout from all devices
 # TODO make a list of login devices, needed it for logout
-# TODO is_system and source and source_id usage in routes and methods
+# TODO is_system and source and source_id usage in routes and methods(?)
 
 
 @app.route("/users", methods=["POST"])
@@ -265,6 +270,7 @@ def users_create(_, verification):
 
     try:
         Users.create_with_check(user_data.dict())
+        # TODO Users.create_with_check(user_data)
 
     except UserAlreadyExistsError as e:
         raise UserAlreadyExistsError(e) from e
@@ -314,6 +320,7 @@ def users_delete():
     Returns:
     501: {'success': False}
     """
+    # TODO delete not only user from db but revoke all tokens
     return {'success': False}
 
 
