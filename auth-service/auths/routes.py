@@ -26,7 +26,7 @@ def token_required(f):
 
         token = authorization_header[len(prefix):]
         try:
-            verification = TokenService.verify_token(token)
+            verification = TokenService.verify_token(token).dict()
         except TokenBlacklisted as e:
             raise TokenBlacklisted("Token invalidated. Get new one") from e
         except TokenExpired as e:

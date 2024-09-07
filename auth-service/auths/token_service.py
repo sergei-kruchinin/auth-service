@@ -17,7 +17,7 @@ class TokenService:
     """
 
     @staticmethod
-    def generate_token(payload: AuthPayload) -> Dict:
+    def generate_token(payload: AuthPayload) -> AuthResponse:
         """
         Generate a JWT token and set its expiration time.
 
@@ -25,11 +25,11 @@ class TokenService:
             payload (AuthPayload): The payload data for the token.
 
         Returns:
-            Dict: The generated token and expiration time.
+            AuthResponse: The generated token and expiration time.
         """
         payload.exp = datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS)
         encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
-        return AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS).dict()
+        return AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
 
     @staticmethod
     def add_to_blacklist(token: str):
@@ -56,7 +56,7 @@ class TokenService:
         return TokenService.Blacklist.is_blacklisted(token)
 
     @staticmethod
-    def verify_token(token: str) -> Dict:
+    def verify_token(token: str) -> AuthPayload:
         """
         Verify a JWT token, ensuring it is not expired or blacklisted.
 
@@ -64,7 +64,7 @@ class TokenService:
             token (str): The JWT token to be verified.
 
         Returns:
-            Dict: The decoded payload of the token if valid.
+            AuthPayload: The decoded payload of the token if valid.
 
         Raises:
             TokenBlacklisted: If the token is blacklisted.
@@ -76,7 +76,7 @@ class TokenService:
             raise TokenBlacklisted("Token invalidated. Get new one")
         try:
             decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
-            return AuthPayload(**decoded).dict()
+            return AuthPayload(**decoded)
         except jwt.ExpiredSignatureError:
             raise TokenExpired("Token expired. Get new one")
         except jwt.InvalidTokenError:

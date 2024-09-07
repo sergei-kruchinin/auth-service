@@ -260,7 +260,7 @@ class Users(db.Model):
 
         payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
                               is_admin=user.is_admin)
-        return TokenService.generate_token(payload)
+        return TokenService.generate_token(payload).dict()
 
     @classmethod
     def authenticate_oauth(cls, login: str) -> Dict:
@@ -283,7 +283,7 @@ class Users(db.Model):
 
         payload = AuthPayload(id=user.id, login=user.login, first_name=user.first_name, last_name=user.last_name,
                               is_admin=user.is_admin)
-        return TokenService.generate_token(payload)
+        return TokenService.generate_token(payload).dict()
 
     # ### 5. Object Representation Methods ###
 
