@@ -81,9 +81,7 @@ def auth():
     # If authentication fails, this will raise an AuthenticationError
     # which will be caught by the error handler and a proper JSON response will be forme
     try:
-        authentication = Users.authenticate(auth_request.login, auth_request.password)
-        # TODO authentication = Users.authenticate(auth_request)
-        #
+        authentication = Users.authenticate(auth_request)
     except AuthenticationError as e:
         raise AuthenticationError('Invalid login or password') from e
 

@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthPayload, UserCreateSchema, UserResponseSchema
+from .schemas import AuthRequest, AuthPayload, UserCreateSchema, UserResponseSchema
 from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
@@ -259,27 +259,21 @@ class Users(db.Model):
         return auth_response.dict()
 
     @classmethod
-    def authenticate(cls, login: str, password: str) -> Dict:
+    def authenticate(cls, auth_request: AuthRequest) -> Dict:
         """
         Authenticate user with login and password.
 
         Args:
-            login (str): The login of the user.
-            password (str): The plaintext password of the user.
-
-                Returns:
-        Dict: The generated token and expiration time.
-
+            auth_request (AuthRequest): The login and plaintest password of the user.
+        Returns:
+            Dict: The generated token and expiration time.
         Raises:
             AuthenticationError: If login or password is invalid.
         """
-        # TODO not login, but AuthRequest?
-        if not password:
-            raise AuthenticationError('Password not specified')
 
-        user = cls.query.filter(cls.login == login).first()
+        user = cls.query.filter(cls.login == auth_request.login).first()
 
-        if user is None or not cls.check_password_hash(user.secret, password):
+        if user is None or not cls.check_password_hash(user.secret, auth_request.password):
             raise AuthenticationError('Invalid login or invalid password')
 
         return user.__generate_auth_response()
