@@ -1,4 +1,3 @@
-import os
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
@@ -6,8 +5,6 @@ from .schemas import AuthPayload, UserCreateSchema, OauthUserCreateSchema, UserR
 from .exceptions import *
 from .token_service import TokenService
 
-AUTH_SECRET = os.getenv('AUTH_SECRET')
-EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 
 
 class Users(db.Model):
@@ -29,22 +26,60 @@ class Users(db.Model):
     )
     pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
+    # ### 1. Login and Password Handling Methods ###
+
     @classmethod
     def create_composite_login(cls, source, oa_id):
+        """
+        Generate a composite login from the source and oa_id.
+
+        Args:
+            source (str): The source of the user.
+            oa_id (str): The OAuth ID.
+
+        Returns:
+            str: The composite login string.
+        """
         return f"{source}:{oa_id}"
 
-    # Generate salted hash from password
     @classmethod
     def generate_password_hash(cls, password):
+        """
+        Generate a salted hash from plaintext password.
+
+        Args:
+            password (str): The plaintext password.
+
+        Returns:
+            str: The hashed password.
+        """
         return cls.pwd_context.hash(password)
 
-    # Check equals of hashed password and presented password
     @classmethod
     def check_password_hash(cls, hashed_password, plain_password):
+        """
+        Verify if the provided plaintext password matches the hashed password.
+
+        Args:
+            hashed_password (str): The hashed password stored in the database.
+            plain_password (str): The plaintext password provided by the user.
+
+        Returns:
+            bool: True if the passwords match, False otherwise.
+        """
         return cls.pwd_context.verify(plain_password, hashed_password)
 
     @classmethod
     def generate_password_hash_or_none(cls, password):
+        """
+        Generate a password hash or return None if the password is None.
+
+        Args:
+            password (str or None): The plaintext password or None.
+
+        Returns:
+            str or None: The hashed password or None.
+        """
         if password is None:
             return None
         try:
@@ -52,20 +87,43 @@ class Users(db.Model):
         except AttributeError as e:
             raise TypeError("Password should be a string") from e
 
+    # ### 2. User Management Methods ###
+
     @classmethod
     def list(cls):
+        """
+        Retrieve the list of all users.
+
+        Returns:
+            dict: A dictionary with a list of all users.
+
+        Raises:
+            DatabaseError: If there was an error while retrieving users.
+        """
         try:
             users = cls.query.all()
             return {'users': [UserResponseSchema.from_orm(user).dict() for user in users]}
         except Exception as e:
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
+    # ### 3. User Creation Methods ###
+
     @classmethod
     def create(cls, data):
         """
-        Don't check if user exists before creating a new user.
+        Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
-        """
+
+        Args:
+            data (dict): The data to create a new user.
+
+        Returns:
+            Users: The newly created user.
+
+        Raises:
+            DatabaseError: If there was an error while creating a user.
+            UserAlreadyExistsError: If user with the login already exists.
+          """
         validated_data = UserCreateSchema(**data)
 
         hashed_password = cls.generate_password_hash_or_none(validated_data.password)
@@ -95,9 +153,17 @@ class Users(db.Model):
     @classmethod
     def create_with_check(cls, data):
         """
-        Check if user exists before creating a new user.
-
+        Create a new user after checking if the user already exists.
         If user exists, raises a UserAlreadyExistsError indicating user already exists.
+
+        Args:
+            data (dict): The data to create a new user.
+
+        Returns:
+            Users: The newly created user.
+
+        Raises:
+            UserAlreadyExistsError: If user with the login already exists.
         """
         validated_data = UserCreateSchema(**data)
 
@@ -109,12 +175,24 @@ class Users(db.Model):
     @classmethod
     def create_or_update_oauth_user(cls, first_name, last_name, is_admin, source, oa_id):
         """
-        Method for using by OAuth 2.0 authorization
-        It's always updates user data from OAuth Provider,
-        if the first authorization -- create user data at database
+        Create or update a user for OAuth 2.0 authorization.
+        It always updates user data from OAuth Provider,
+        if it is the first authorization -- create user data in the database.
+
+        Args:
+            first_name (str): The first name of the user.
+            last_name (str): The last name of the user.
+            is_admin (bool): Boolean indicating if the user is an admin.
+            source (str): The source of the user.
+            oa_id (str): The OAuth ID.
+
+        Returns:
+            Users: The created or updated user.
+
+        Raises:
+            DatabaseError: If there was an error while updating the user.
         """
         login = cls.create_composite_login(source, oa_id)
-        #  hashed_password = cls.generate_password_hash_or_none(password)
         is_admin = bool(is_admin)
 
         # is user already in database?
@@ -148,8 +226,23 @@ class Users(db.Model):
             db.session.rollback()
             raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
+    # ### 4. Authentication Methods ###
+
     @classmethod
     def authenticate(cls, login, password):
+        """
+        Authenticate user with login and password.
+
+        Args:
+            login (str): The login of the user.
+            password (str): The plaintext password of the user.
+
+        Returns:
+            str: A generated token for the authenticated user.
+
+        Raises:
+            AuthenticationError: If login or password is invalid.
+        """
         if not password:
             raise AuthenticationError('Password not specified')
 
@@ -164,6 +257,18 @@ class Users(db.Model):
 
     @classmethod
     def authenticate_oauth(cls, login):
+        """
+        Authenticate OAuth user with login <source:oa_id>.
+
+        Args:
+            login (str): The login <source:oa_id> of the OAuth user.
+
+        Returns:
+            str: A generated token for the authenticated user.
+
+        Raises:
+            DatabaseError: If there is an error while syncing from social service.
+        """
         user = cls.query.filter_by(login=login).first()
 
         if user is None:
@@ -173,5 +278,14 @@ class Users(db.Model):
                               is_admin=user.is_admin)
         return TokenService.generate_token(payload)
 
+    # ### 5. Object Representation Methods ###
+
     def __repr__(self):
+        """
+        Represent user information for debugging/logging.
+
+        Returns:
+            str: Representation of the user's login.
+        """
+
         return f'User {self.login}'

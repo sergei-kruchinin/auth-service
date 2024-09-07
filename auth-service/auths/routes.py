@@ -12,6 +12,7 @@ from .schemas import AuthRequest, UserCreateInputSchema, YandexUserInfo
 from pydantic import ValidationError
 from .exceptions import *
 from .token_service import TokenService
+import os
 
 
 # decorator for token verification

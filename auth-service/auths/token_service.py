@@ -11,22 +11,67 @@ EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
 
 
 class TokenService:
+    """
+    TokenService handles all operations related to JWT token generation, validation,
+    and management of tokens in the blacklist.
+    """
+
     @staticmethod
     def generate_token(payload: AuthPayload) -> Dict:
+        """
+        Generate a JWT token and set its expiration time.
+
+        Args:
+            payload (AuthPayload): The payload data for the token.
+
+        Returns:
+            Dict: The generated token and expiration time.
+        """
         payload.exp = datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS)
         encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
         return AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS).dict()
 
     @staticmethod
     def add_to_blacklist(token: str):
+        """
+        Add a token to the blacklist.
+
+        Args:
+            token (str): The JWT token to be added to the blacklist.
+        """
         TokenService.Blacklist.add_token(token)
 
     @staticmethod
     def is_blacklisted(token: str) -> bool:
+        """
+        Check if a token is in the blacklist.
+
+        Args:
+            token (str): The JWT token to be checked.
+
+        Returns:
+            bool: True if the token is blacklisted, False otherwise.
+        """
+
         return TokenService.Blacklist.is_blacklisted(token)
 
     @staticmethod
     def verify_token(token: str) -> Dict:
+        """
+        Verify a JWT token, ensuring it is not expired or blacklisted.
+
+        Args:
+            token (str): The JWT token to be verified.
+
+        Returns:
+            Dict: The decoded payload of the token if valid.
+
+        Raises:
+            TokenBlacklisted: If the token is blacklisted.
+            TokenExpired: If the token has expired.
+            TokenInvalid: If the token is invalid.
+        """
+
         if TokenService.is_blacklisted(token):
             raise TokenBlacklisted("Token invalidated. Get new one")
         try:
@@ -38,10 +83,19 @@ class TokenService:
             raise TokenInvalid("Invalid token")
 
     class Blacklist(db.Model):
+        """
+        Inner class for managing the blacklist of tokens.
+        """
         token = db.Column(db.String(256), primary_key=True, nullable=False)
 
         @classmethod
-        def add_token(cls, black_token):
+        def add_token(cls, black_token: str):
+            """
+            Add a token to the blacklist.
+
+            Args:
+                black_token (str): The JWT token to be blacklisted.
+            """
             try:
                 black_token_record = cls(token=black_token)
                 db.session.add(black_token_record)
@@ -51,7 +105,16 @@ class TokenService:
                 raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
 
         @classmethod
-        def is_blacklisted(cls, token):
+        def is_blacklisted(cls, token: str) -> bool:
+            """
+            Check if a token is in the blacklist.
+
+            Args:
+                token (str): The JWT token to be checked.
+
+            Returns:
+                bool: True if the token is blacklisted, False otherwise.
+            """
             try:
                 return bool(cls.query.get(token))
             except Exception as e:
