@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
+from pydantic import BaseModel, Field, constr, model_validator, field_validator, ConfigDict
 import os
 
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
@@ -21,18 +21,23 @@ class AuthResponse(BaseModel):
 
 
 class AuthRequest(BaseModel):
-    login: constr(min_length=3, strip_whitespace=True)
-    password: constr(min_length=8, strip_whitespace=True)
+    login: constr(min_length=3, strip_whitespace=True) = Field(
+        ..., description="The login of the user"
+    )
+    password: constr(min_length=8, strip_whitespace=True) = Field(
+        ..., description="The plaintext password of the user"
+    )
 
 
 class UserBaseSchema(BaseModel):
     login: constr(min_length=3, strip_whitespace=True)
-    first_name: str | None = Field(default=None)
-    last_name: str = Field(default="system")
-    password: constr(min_length=8, strip_whitespace=True) | None = Field(default=None)
-    is_admin: bool = Field(default=False)
-    source: str = Field(default="manual")
-    oa_id: str | None = Field(default=None)
+    first_name: str | None = Field(default=None, description="The first name of the user")
+    last_name: str = Field(default="system", description="The last name of the user")
+    password: (constr(min_length=8, strip_whitespace=True)
+               | None) = Field(default=None, description="The plaintext password provided by the user or None.")
+    is_admin: bool = Field(default=False, description="Boolean indicating if the user is an admin.")
+    source: str = Field(default="manual", description="The source of the user (manual/yandex)")
+    oa_id: str | None = Field(default=None, description="The OAuth ID.")
 
 
 class UserCreateSchema(UserBaseSchema):
@@ -41,12 +46,14 @@ class UserCreateSchema(UserBaseSchema):
 
 class UserCreateInputSchema(UserBaseSchema):
 
+    @classmethod
     @model_validator(mode='before')
     def set_first_name(cls, values):
         if not values.get('first_name'):
             values['first_name'] = values.get('login')
         return values
 
+    @classmethod
     @model_validator(mode='before')
     def no_colon_in_login(cls, values):
         login = values.get('login')

@@ -164,7 +164,6 @@ class Users(db.Model):
         Raises:
             UserAlreadyExistsError: If user with the login already exists.
         """
-        # TODO not data: dict but data:UserCreateSchema
         # TODO further: class constructor instead of method (?)
 
         if cls.query.filter_by(login=user_data.login).first():
