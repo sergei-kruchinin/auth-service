@@ -1,7 +1,10 @@
+# models.py
 from passlib.context import CryptContext
 from sqlalchemy.sql import func
 from . import db
-from .schemas import AuthRequest, AuthPayload, UserCreateSchema, UserCreateInputSchema, UserResponseSchema
+from .schemas import (AuthRequest, AuthPayload,
+                      OauthUserCreateSchema,
+                      UserCreateInputSchema, UserResponseSchema)
 from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
@@ -109,13 +112,13 @@ class Users(db.Model):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def __create(cls, user_data: UserCreateSchema | UserCreateInputSchema) -> 'Users':
+    def __create(cls, user_data: OauthUserCreateSchema | UserCreateInputSchema) -> 'Users':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
 
         Args:
-            user_data (UserCreateSchema | UserCreateInputSchema): The data to create a new user.
+            user_data (OauthUserCreateSchema | UserCreateInputSchema): The data to create a new user.
 
         Returns:
             Users: The newly created user.
@@ -172,25 +175,14 @@ class Users(db.Model):
         return user
 
     @classmethod
-    def create_or_update_oauth_user(
-            cls,
-            first_name: str,
-            last_name: str,
-            is_admin: bool,
-            source: str,
-            oa_id: str
-            ) -> 'Users':
+    def create_or_update_oauth_user(cls, oauth_user_data: OauthUserCreateSchema) -> 'Users':
         """
         Create or update a user for OAuth 2.0 authorization.
         It always updates user data from OAuth Provider,
         if it is the first authorization -- create user data in the database.
 
         Args:
-            first_name (str): The first name of the user.
-            last_name (str): The last name of the user.
-            is_admin (bool): Boolean indicating if the user is an admin.
-            source (str): The source of the user.
-            oa_id (str): The OAuth ID.
+            oauth_user_data (OauthUserCreateSchema): The OAuth User data without login and with source and oa_id
 
         Returns:
             Users: The created or updated user.
@@ -198,37 +190,27 @@ class Users(db.Model):
         Raises:
             DatabaseError: If there was an error while updating the user.
         """
-        # TODO def create_or_update_oauth_user(cls, data: OAuthUserCreateSchema)
+
         # TODO Further : Single Table Inheritance (STI) class OAuthUser
         # and it's constructor (?)
 
-        login = cls.create_composite_login(source, oa_id)
-        is_admin = bool(is_admin)
+        # oauth_user_data.login = cls.create_composite_login(oauth_user_data.source, oauth_user_data.oa_id)
 
         # is user already in database?
-        user = cls.query.filter_by(login=login).first()
+        user = cls.query.filter_by(login=oauth_user_data.login).first()
 
         try:
             if user is None:
                 # User doesn't exist, so create a new one
                 # print(login, first_name, last_name, is_admin, source, oa_id)
 
-                user_data = UserCreateSchema(
-                    login=login,
-                    first_name=first_name,
-                    last_name=last_name,
-                    password=None,  # There is no password for OAuth
-                    is_admin=is_admin,
-                    source=source,
-                    oa_id=oa_id
-                )
-                user = cls.__create(user_data)
+                user = cls.__create(oauth_user_data)
                 return user
             else:
                 # User exists, update the existing user information with the new details
-                user.first_name = first_name
-                user.last_name = last_name
-                user.is_admin = is_admin
+                user.first_name = oauth_user_data.first_name
+                user.last_name = oauth_user_data.last_name
+                user.is_admin = oauth_user_data.is_admin
 
                 db.session.commit()
                 return user

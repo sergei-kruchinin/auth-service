@@ -1,5 +1,6 @@
+# schemas.py
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, constr, model_validator, field_validator, ConfigDict
+from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 import os
 
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
@@ -44,18 +45,24 @@ class UserCreateSchema(UserBaseSchema):
     pass
 
 
+class OauthUserCreateSchema(UserBaseSchema):
+    @model_validator(mode='before')
+    def set_composite_login(values):
+        if 'login' not in values or not values['login']:
+            values['login'] = f"{values.get('source')}:{values.get('oa_id')}"
+        return values
+
+
 class UserCreateInputSchema(UserBaseSchema):
 
-    @classmethod
     @model_validator(mode='before')
-    def set_first_name(cls, values):
+    def set_first_name(values):
         if not values.get('first_name'):
             values['first_name'] = values.get('login')
         return values
 
-    @classmethod
     @model_validator(mode='before')
-    def no_colon_in_login(cls, values):
+    def no_colon_in_login(values):
         login = values.get('login')
         if login and ':' in login:
             raise ValueError("Login must not contain the ':' character")

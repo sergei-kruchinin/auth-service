@@ -1,3 +1,4 @@
+# routes.py
 import base64
 from functools import wraps
 
@@ -176,13 +177,13 @@ def auth_yandex_callback():
 
     # add to our database (or update)
     try:
-        user = Users.create_or_update_oauth_user(
+        oauth_user_data = OauthUserCreateSchema(
             first_name=user_info.first_name,
             last_name=user_info.last_name,
             is_admin=False,
             source='yandex',
             oa_id=user_info.id)
-        # TODO Users.create_or_update_oauth_user(user_data: OauthUserCreateSchema)
+        user = Users.create_or_update_oauth_user(oauth_user_data)
 
         authentication = user.authenticate_oauth()
 
@@ -194,7 +195,7 @@ def auth_yandex_callback():
 
 @app.route("/logout", methods=["POST"])
 @token_required
-def logout(token, verification):
+def logout(token, _):
     """
     Route for logging out a user and invalidating the token.
 
@@ -268,7 +269,6 @@ def users_create(_, verification):
 
     try:
         Users.create_with_check(user_data)
-
     except UserAlreadyExistsError as e:
         raise UserAlreadyExistsError(e) from e
     except DatabaseError as e:
