@@ -16,8 +16,25 @@ from .token_service import TokenService
 import os
 
 
-# decorator for token verification
 def token_required(f):
+    """
+    Decorator to verify the presence and validity of a Bearer token in the request headers.
+
+    This decorator checks for an 'Authorization' header with the prefix 'Bearer '.
+    If the token is valid, it passes the token and verification result to the decorated function.
+
+    Args:
+        f (function): The function to be decorated.
+
+    Raises:
+        HeaderNotSpecifiedError: If the authorization header is not specified or does not start with 'Bearer '.
+        TokenBlacklisted: If the token has been invalidated.
+        TokenExpired: If the token has expired.
+        TokenInvalid: If the token is invalid.
+
+    Returns:
+        function: The wrapped function with token and verification parameters added.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
         authorization_header = request.headers.get('authorization')
@@ -117,8 +134,6 @@ def auth_yandex_callback():
         response.raise_for_status()
         return response.json()
 
-    access_token = None
-    auth_code = None
     if request.method == 'POST':
         # In POST requests, we always receive the token.
         access_token = request.json.get('token')

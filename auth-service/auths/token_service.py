@@ -1,7 +1,6 @@
 import jwt
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Dict
 from .schemas import AuthPayload, AuthResponse
 from . import db
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
