@@ -40,17 +40,7 @@ def token_required(f):
     return decorated
 
 
-@app.route("/", methods=["GET"])
-def site_root():
-    """
-    Root route for the application (Temporary/Dummy)
-
-    Method: GET
-
-    Returns:
-    200: HTML page with "hello world".
-    """
-    return '<html><body>hello world</body></html>'
+# ### 1. User Authentication Methods: ###
 
 
 @app.route("/auth", methods=["POST"])
@@ -87,24 +77,6 @@ def auth():
         raise AuthenticationError('Invalid login or password') from e
 
     return authentication, 200
-
-
-@app.route("/verify", methods=["POST"])
-@token_required
-def verify(_, verification):
-    """
-    Route for verifying an authentication token.
-
-    Method: POST
-
-    Headers:
-    - Authorization: Bearer <token>
-
-    Returns:
-    200: JSON containing verification status
-    401: For invalid or expired tokens
-    """
-    return verification
 
 
 @app.route("/auth/yandex/callback", methods=["POST", "GET"])
@@ -193,6 +165,47 @@ def auth_yandex_callback():
     return authentication, 200
 
 
+def generate_yandex_iframe_uri():
+    yandex_id = os.getenv('YANDEX_ID')
+    iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    return iframe_uri
+
+
+@app.route("/auth/yandex/by_code", methods=["GET"])
+def auth_yandex_by_code():
+    """
+    Route for generating Yandex OAuth authorization URI.
+
+    Method: GET
+
+    Returns:
+    200: JSON containing the iframe URI
+    """
+    iframe_uri = generate_yandex_iframe_uri()
+    return {'iframe_uri': iframe_uri}
+
+
+# ### 2. Token Verification and Invalidation Methods ###
+
+
+@app.route("/verify", methods=["POST"])
+@token_required
+def verify(_, verification):
+    """
+    Route for verifying an authentication token.
+
+    Method: POST
+
+    Headers:
+    - Authorization: Bearer <token>
+
+    Returns:
+    200: JSON containing verification status
+    401: For invalid or expired tokens
+    """
+    return verification
+
+
 @app.route("/logout", methods=["POST"])
 @token_required
 def logout(token, _):
@@ -221,10 +234,12 @@ def logout(token, _):
 
     return {'success': status, 'message': message}
 
-
 # TODO make a logout from all devices
 # TODO make a list of login devices, needed it for logout
 # TODO is_system and source and source_id usage in routes and methods(?)
+
+
+# ### 3. User Management Methods: ###
 
 
 @app.route("/users", methods=["POST"])
@@ -321,30 +336,25 @@ def users_delete():
     return {'success': False}
 
 
-# Some helper routes
+# ### 4. Root Route Method: ###
 
 
-def generate_yandex_iframe_uri():
-    yandex_id = os.getenv('YANDEX_ID')
-    iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
-    return iframe_uri
-
-
-@app.route("/auth/yandex/by_code", methods=["GET"])
-def auth_yandex_by_code():
+@app.route("/", methods=["GET"])
+def site_root():
     """
-    Route for generating Yandex OAuth authorization URI.
+    Root route for the application (Temporary/Dummy)
 
     Method: GET
 
     Returns:
-    200: JSON containing the iframe URI
+    200: HTML page with "hello world".
     """
-    iframe_uri = generate_yandex_iframe_uri()
-    return {'iframe_uri': iframe_uri}
+    return '<html><body>hello world</body></html>'
 
 
-# Frontend routes for testing Yandex OAuth 2.0
+# ### 5. Frontend Imitation Methods for testing Yandex OAuth 2.0 ###
+
+
 @app.route("/auth/yandex/by_code.html", methods=["GET"])
 def auth_yandex_by_code_html():
     """
