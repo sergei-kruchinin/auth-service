@@ -8,6 +8,7 @@ from .schemas import (AuthRequest, AuthPayload,
 from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class Users(db.Model):
@@ -169,10 +170,16 @@ class Users(db.Model):
         """
         # TODO further: class constructor instead of method (?)
 
-        if cls.query.filter_by(login=user_data.login).first():
-            raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
-        user = cls.__create(user_data)
-        return user
+        try:
+            if cls.query.filter_by(login=user_data.login).first():
+                raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
+
+            user = cls.__create(user_data)
+            return user
+        except UserAlreadyExistsError as e:
+            raise e  # Пробрасываем исключение UserAlreadyExistsError без изменений
+        except Exception as e:
+            raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
     @classmethod
     def create_or_update_oauth_user(cls, oauth_user_data: OauthUserCreateSchema) -> 'Users':
@@ -195,11 +202,10 @@ class Users(db.Model):
         # and it's constructor (?)
 
         # oauth_user_data.login = cls.create_composite_login(oauth_user_data.source, oauth_user_data.oa_id)
-
-        # is user already in database?
-        user = cls.query.filter_by(login=oauth_user_data.login).first()
-
         try:
+            # is user already in database?
+            user = cls.query.filter_by(login=oauth_user_data.login).first()
+
             if user is None:
                 # User doesn't exist, so create a new one
                 # print(login, first_name, last_name, is_admin, source, oa_id)
@@ -250,13 +256,16 @@ class Users(db.Model):
         Raises:
             AuthenticationError: If login or password is invalid.
         """
+        try:
+            user = cls.query.filter(cls.login == auth_request.login).first()
 
-        user = cls.query.filter(cls.login == auth_request.login).first()
+            if user is None or not cls.check_password_hash(user.secret, auth_request.password):
+                raise AuthenticationError('Invalid login or invalid password')
 
-        if user is None or not cls.check_password_hash(user.secret, auth_request.password):
-            raise AuthenticationError('Invalid login or invalid password')
+            return user.__generate_auth_response()
 
-        return user.__generate_auth_response()
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
     def authenticate_oauth(self) -> Dict:
         """
