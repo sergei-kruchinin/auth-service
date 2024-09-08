@@ -107,7 +107,7 @@ class Users(db.Model):
         try:
             users = cls.query.all()
             return {'users': [UserResponseSchema.from_orm(user).dict() for user in users]}
-        except Exception as e:
+        except SQLAlchemyError as e:
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
     # ### 3. User Creation Methods ###
@@ -149,7 +149,7 @@ class Users(db.Model):
                 db.session.commit()
 
             return new_user
-        except Exception as e:
+        except SQLAlchemyError as e:
             db.session.rollback()
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
@@ -176,9 +176,8 @@ class Users(db.Model):
 
             user = cls.__create(user_data)
             return user
-        except UserAlreadyExistsError as e:
-            raise e  # Пробрасываем исключение UserAlreadyExistsError без изменений
-        except Exception as e:
+
+        except SQLAlchemyError as e:
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
     @classmethod
@@ -220,7 +219,7 @@ class Users(db.Model):
 
                 db.session.commit()
                 return user
-        except Exception as e:
+        except SQLAlchemyError as e:
             db.session.rollback()
             raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
