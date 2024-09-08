@@ -29,7 +29,7 @@ class Users(db.Model):
     )
     pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-    # ### 1. Login and Password Handling Methods ###
+    # ### 1. Password Handling Methods ###
 
     @staticmethod
     def create_composite_login(source: str, oa_id: str) -> str:
