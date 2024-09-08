@@ -44,7 +44,7 @@ class UserCreateSchema(UserBaseSchema):
                | None) = Field(default=None, description="The plaintext password provided by the user or None.")
 
 
-class OauthUserCreateSchema(UserCreateSchema):
+class OAuthUserCreateSchema(UserCreateSchema):
     @model_validator(mode='before')
     def set_composite_login(values):
         """

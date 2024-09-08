@@ -1,14 +1,16 @@
 # models.py
 from passlib.context import CryptContext
+# from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
 from . import db
 from .schemas import (AuthRequest, AuthPayload,
-                      OauthUserCreateSchema,
+                      OAuthUserCreateSchema,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
 from sqlalchemy.exc import SQLAlchemyError
+# from .database import Base
 
 
 class Users(db.Model):
@@ -113,13 +115,13 @@ class Users(db.Model):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def __create(cls, user_data: OauthUserCreateSchema | UserCreateInputSchema) -> 'Users':
+    def __create(cls, user_data: OAuthUserCreateSchema | UserCreateInputSchema) -> 'Users':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
 
         Args:
-            user_data (OauthUserCreateSchema | UserCreateInputSchema): The data to create a new user.
+            user_data (OAuthUserCreateSchema | UserCreateInputSchema): The data to create a new user.
 
         Returns:
             Users: The newly created user.
@@ -181,14 +183,14 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
     @classmethod
-    def create_or_update_oauth_user(cls, oauth_user_data: OauthUserCreateSchema) -> 'Users':
+    def create_or_update_oauth_user(cls, oauth_user_data: OAuthUserCreateSchema) -> 'Users':
         """
         Create or update a user for OAuth 2.0 authorization.
         It always updates user data from OAuth Provider,
         if it is the first authorization -- create user data in the database.
 
         Args:
-            oauth_user_data (OauthUserCreateSchema): The OAuth User data without login and with source and oa_id
+            oauth_user_data (OAuthUserCreateSchema): The OAuth User data without login and with source and oa_id
 
         Returns:
             Users: The created or updated user.

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from .exceptions import *
 from .token_service import TokenService
 import os
+from .yandex_oauth import YandexOAuthService
 
 
 def token_required(f):
@@ -112,28 +113,6 @@ def auth_yandex_callback():
     503: If there's an OAuth or user data retrieval error
     """
 
-    def get_token_from_code(auth_code):
-        yandex_url = 'https://oauth.yandex.ru/token'
-        client_id = os.getenv('YANDEX_ID')
-        client_secret = os.getenv('YANDEX_SECRET')
-
-        client_id_sec = f'{client_id}:{client_secret}'
-        client_id_sec_base64_encoded = base64.b64encode(client_id_sec.encode()).decode()
-        headers = {'Authorization': f'Basic {client_id_sec_base64_encoded}'}
-        params = {'grant_type': 'authorization_code', 'code': auth_code}
-
-        response = requests.post(yandex_url, headers=headers, data=params)
-        response.raise_for_status()
-        return response.json().get('access_token')
-
-    def get_user_info(access_token):
-        headers = {'Authorization': f'OAuth {access_token}'}
-        yandex_url = 'https://login.yandex.ru/info'
-
-        response = requests.get(yandex_url, headers=headers)
-        response.raise_for_status()
-        return response.json()
-
     if request.method == 'POST':
         # In POST requests, we always receive the token.
         access_token = request.json.get('token')
@@ -147,7 +126,7 @@ def auth_yandex_callback():
 
         if access_token is None and auth_code is not None:
             try:
-                access_token = get_token_from_code(auth_code)
+                access_token = YandexOAuthService.get_token_from_code(auth_code)
             except requests.exceptions.RequestException as e:
                 raise OAuthServerError(f'Yandex OAuth error: {str(e)}')
 
@@ -155,8 +134,7 @@ def auth_yandex_callback():
         raise OAuthServerError('Token or authorization code is missing')
 
     try:
-        raw_user_info = get_user_info(access_token)
-        user_info = YandexUserInfo(**raw_user_info)
+        yandex_user_info = YandexOAuthService.get_user_info(access_token)
     except requests.exceptions.RequestException as e:
         raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}') from e
     except ValidationError as e:
@@ -164,12 +142,7 @@ def auth_yandex_callback():
 
     # add to our database (or update)
     try:
-        oauth_user_data = OauthUserCreateSchema(
-            first_name=user_info.first_name,
-            last_name=user_info.last_name,
-            is_admin=False,
-            source='yandex',
-            oa_id=user_info.id)
+        oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth_user_create_schema(yandex_user_info)
         user = Users.create_or_update_oauth_user(oauth_user_data)
 
         authentication = user.authenticate_oauth()
