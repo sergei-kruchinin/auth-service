@@ -142,7 +142,7 @@ def auth_yandex_callback():
 
     # add to our database (or update)
     try:
-        oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth_user_create_schema(yandex_user_info)
+        oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
         user = Users.create_or_update_oauth_user(oauth_user_data)
 
         authentication = user.authenticate_oauth()

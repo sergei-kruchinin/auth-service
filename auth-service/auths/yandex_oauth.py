@@ -29,7 +29,7 @@ class YandexOAuthService:
         return yandex_user_info
 
     @staticmethod
-    def yandex_user_info_to_oauth_user_create_schema(user_info: YandexUserInfo) -> OAuthUserCreateSchema:
+    def yandex_user_info_to_oauth(user_info: YandexUserInfo) -> OAuthUserCreateSchema:
         oauth_user_data = OAuthUserCreateSchema(
             first_name=user_info.first_name,
             last_name=user_info.last_name,

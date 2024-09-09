@@ -34,20 +34,6 @@ class Users(db.Model):
 
     # ### 1. Password Handling Methods ###
 
-    @staticmethod
-    def create_composite_login(source: str, oa_id: str) -> str:
-        """
-        Generate a composite login from the source and oa_id.
-
-        Args:
-            source (str): The source of the user.
-            oa_id (str): The OAuth ID.
-
-        Returns:
-            str: The composite login string.
-        """
-        return f"{source}:{oa_id}"
-
     @classmethod
     def generate_password_hash(cls, password: str) -> str:
         """
