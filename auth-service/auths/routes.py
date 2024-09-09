@@ -15,6 +15,10 @@ from .exceptions import *
 from .token_service import TokenService
 import os
 from .yandex_oauth import YandexOAuthService
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def token_required(f):
@@ -77,7 +81,7 @@ def auth():
     400: If no data is provided
     401: For invalid login/password
     """
-
+    logger.info("Auth route called")
     # get the user_id and secret from the client application
     json_data = request.get_json()
     if not json_data:
@@ -94,6 +98,7 @@ def auth():
     except AuthenticationError as e:
         raise AuthenticationError('Invalid login or password') from e
 
+    logger.info("User authenticated successfully")
     return authentication, 200
 
 
@@ -112,6 +117,7 @@ def auth_yandex_callback():
     200: JSON containing authentication token
     503: If there's an OAuth or user data retrieval error
     """
+    logger.info("Received Yandex OAuth callback request")
 
     if request.method == 'POST':
         # In POST requests, we always receive the token.
@@ -128,16 +134,21 @@ def auth_yandex_callback():
             try:
                 access_token = YandexOAuthService.get_token_from_code(auth_code)
             except requests.exceptions.RequestException as e:
+                logger.error(f'Yandex OAuth error: {str(e)}')
                 raise OAuthServerError(f'Yandex OAuth error: {str(e)}')
 
     if access_token is None:
+        logger.error('access_token is None: Token or authorization code is missing')
         raise OAuthServerError('Token or authorization code is missing')
 
     try:
         yandex_user_info = YandexOAuthService.get_user_info(access_token)
+        logger.info("Successfully retrieved user info from Yandex")
     except requests.exceptions.RequestException as e:
+        logger.error(f'Unable to retrieve user data: {str(e)}')
         raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}') from e
     except ValidationError as e:
+        logger.error(f"Unable to retrieve user data: {str(e)}")
         raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
 
     # add to our database (or update)
@@ -148,8 +159,10 @@ def auth_yandex_callback():
         authentication = user.authenticate_oauth()
 
     except DatabaseError as e:
+        logger.error(f"There was an error while syncing the user from yandex: {str(e)}"')
         raise DatabaseError(f"There was an error while syncing the user from yandex: {str(e)}") from e
 
+    logger.info("Yandex user authenticated successfully")
     return authentication, 200
 
 
@@ -169,6 +182,7 @@ def auth_yandex_by_code():
     Returns:
     200: JSON containing the iframe URI
     """
+    logger.info("Yandex OAuth by code called")
     iframe_uri = generate_yandex_iframe_uri()
     return {'iframe_uri': iframe_uri}
 
@@ -191,6 +205,7 @@ def verify(_, verification):
     200: JSON containing verification status
     401: For invalid or expired tokens
     """
+    logger.info("Verify route called")
     return verification
 
 
@@ -212,6 +227,7 @@ def logout(token, _):
     # by now it not be executed. @token_required on not authenticated raises exception 401
     # if not verification:  # if verification returned None or failed
     #     return {'success': False, 'message': 'Invalid or expired token'}, 401
+    logger.info("Logout route called")
 
     try:
         TokenService.add_to_blacklist(token)
@@ -259,6 +275,8 @@ def users_create(_, verification):
     409: If user already exists
     500: If there's an error creating the user
     """
+    logger.info("Create user route called")
+
     if not verification.get("is_admin"):
         raise AdminRequiredError("Access Denied")
 
@@ -277,6 +295,7 @@ def users_create(_, verification):
     except DatabaseError as e:
         raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
+    logger.info("User created successfully")
     return {'success': True}, 201
 
 
@@ -296,32 +315,22 @@ def users_list(_, verification):
     403: If user is not an admin
     500: If there's an error retrieving the list
     """
+    logger.info("Fetching list of users")
     if not verification.get("is_admin"):
+        logger.error("is_admin is False")
         raise AdminRequiredError('Access Denied')
     try:
         users_list_json = Users.list()
+        logger.info("Users list retrieved successfully")
+        return users_list_json
+
     except DatabaseError as e:
+        logger.error(f"DatabaseError: {e}")
         raise DatabaseError(f"There was an error while retrieving the users list {str(e)}") from e
 
-    return users_list_json
 
 
-@app.route("/users", methods=["DELETE"])
-@token_required
-def users_delete():
-    """
-    Route for deleting a user (if is_admin): not yet implemented.
 
-    Method: DELETE
-
-    Headers:
-    - Authorization: Bearer <admin_token>
-
-    Returns:
-    501: {'success': False}
-    """
-    # TODO delete not only user from db but revoke all tokens
-    return {'success': False}
 
 
 # ### 4. Root Route Method: ###
@@ -337,6 +346,7 @@ def site_root():
     Returns:
     200: HTML page with "hello world".
     """
+    logger.info("Root route called")
     return '<html><body>hello world</body></html>'
 
 
@@ -353,6 +363,7 @@ def auth_yandex_by_code_html():
     Returns:
     200: HTML link to Yandex OAuth iframe URI
     """
+    logger.info("Yandex OAuth by code HTML called")
     iframe_uri = generate_yandex_iframe_uri()
     return f'<a href="{iframe_uri}">{iframe_uri}</a>'
 
@@ -367,6 +378,7 @@ def auth_yandex_html():
     Returns:
     200: HTML page for Yandex OAuth
     """
+    logger.info("Yandex OAuth HTML called")
     yandex_id = os.getenv('YANDEX_ID')
     api_domain = os.getenv('API_DOMAIN')
     redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
@@ -384,7 +396,7 @@ def auth_yandex_callback_html():
     Returns:
     200: HTML page for Yandex OAuth callback
     """
-
+    logger.info("Yandex OAuth callback HTML called")
     api_domain = os.getenv('API_DOMAIN')
     callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
     return auth_yandex_callback_html_code(callback_uri)
