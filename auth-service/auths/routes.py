@@ -139,7 +139,7 @@ def auth_yandex_callback():
                 access_token = YandexOAuthService.get_token_from_code(auth_code)
             except requests.exceptions.RequestException as e:
                 logger.error(f'Yandex OAuth error: {str(e)}')
-                raise OAuthServerError(f'Yandex OAuth error: {str(e)}')
+                raise OAuthServerError(f'Yandex OAuth error')
 
     if access_token is None:
         logger.error('access_token is None: Token or authorization code is missing')
@@ -150,10 +150,10 @@ def auth_yandex_callback():
         logger.info("Successfully retrieved user info from Yandex")
     except requests.exceptions.RequestException as e:
         logger.error(f'Unable to retrieve user data: {str(e)}')
-        raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}') from e
+        raise OAuthUserDataRetrievalError(f'Unable to retrieve user data') from e
     except ValidationError as e:
         logger.error(f"Unable to retrieve user data: {str(e)}")
-        raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
+        raise CustomValidationError(f'Invalid user data received from Yandex') from e
 
     # add to our database (or update)
     try:
@@ -164,7 +164,7 @@ def auth_yandex_callback():
 
     except DatabaseError as e:
         logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
-        raise DatabaseError(f"There was an error while syncing the user from yandex: {str(e)}") from e
+        raise DatabaseError(f"There was an error while syncing the user from yandex") from e
 
     logger.info("Yandex user authenticated successfully")
     return authentication, 200
@@ -292,14 +292,16 @@ def users_create(_, verification):
     try:
         user_data = UserCreateInputSchema(**json_data)
     except ValidationError as e:
-        raise CustomValidationError(str(e)) from e
+        logger.error(f"Not Correct UserCreateInputSchema for manual user: {str(e)}")
+        raise CustomValidationError(f"Invalid login format") from e
 
     try:
         Users.create_with_check(user_data)
     except UserAlreadyExistsError as e:
         raise UserAlreadyExistsError(e) from e
     except DatabaseError as e:
-        raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
+        logger.error(f"There was an error while creating a user: {str(e)}")
+        raise DatabaseError(f"There was an error while creating a user") from e
 
     logger.info("User created successfully")
     return {'success': True}, 201
@@ -331,8 +333,8 @@ def users_list(_, verification):
         return users_list_json
 
     except DatabaseError as e:
-        logger.error(f"DatabaseError: {e}")
-        raise DatabaseError(f"There was an error while retrieving the users list {str(e)}") from e
+        logger.error(f"here was an error while retrieving the users list. DatabaseError: {e}")
+        raise DatabaseError(f"There was an error while retrieving the users list.") from e
 
 
 
