@@ -45,16 +45,20 @@ def token_required(f):
         authorization_header = request.headers.get('authorization')
         prefix = 'Bearer '
         if not authorization_header or not authorization_header.startswith(prefix):
+            logger.error("Authorization header missing or does not start with 'Bearer '")
             raise HeaderNotSpecifiedError('Header not specified or prefix not supported.')
 
         token = authorization_header[len(prefix):]
         try:
             verification = TokenService.verify_token(token).dict()
         except TokenBlacklisted as e:
+            logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e
         except TokenExpired as e:
+            logger.warning(f"Token expired. Get new one: {str(e)}")
             raise TokenExpired("Token expired. Get new one") from e
         except TokenInvalid as e:
+            logger.error(f"Invalid token: {str(e)}")
             raise TokenInvalid("Invalid token") from e
 
         return f(token, verification, *args, **kwargs)
@@ -278,10 +282,12 @@ def users_create(_, verification):
     logger.info("Create user route called")
 
     if not verification.get("is_admin"):
+        logger.warning("is_admin if False")
         raise AdminRequiredError("Access Denied")
 
     json_data = request.get_json()
     if not json_data:
+        logger.error("No input data provided")
         raise CustomValidationError("No input data provided")
     try:
         user_data = UserCreateInputSchema(**json_data)
@@ -317,7 +323,7 @@ def users_list(_, verification):
     """
     logger.info("Fetching list of users")
     if not verification.get("is_admin"):
-        logger.error("is_admin is False")
+        logger.warning("is_admin is False")
         raise AdminRequiredError('Access Denied')
     try:
         users_list_json = Users.list()

@@ -10,6 +10,8 @@ from .exceptions import *
 from .token_service import TokenService
 from typing import Dict, List
 from sqlalchemy.exc import SQLAlchemyError
+import logging
+logger = logging.getLogger(__name__)
 # from .database import Base
 
 
@@ -45,6 +47,7 @@ class Users(db.Model):
         Returns:
             str: The hashed password.
         """
+        logger.info("Generating password hash")
         return cls.pwd_context.hash(password)
 
     @classmethod
@@ -59,6 +62,7 @@ class Users(db.Model):
         Returns:
             bool: True if the passwords match, False otherwise.
         """
+        logger.info("Checking password hash")
         return cls.pwd_context.verify(plain_password, hashed_password)
 
     @classmethod
@@ -77,6 +81,7 @@ class Users(db.Model):
         try:
             return cls.generate_password_hash(password)
         except AttributeError as e:
+            logger.error(f"Password should be a string, got None: {str(e)}")
             raise TypeError("Password should be a string") from e
 
     # ### 2. User Management Methods ###
@@ -96,6 +101,7 @@ class Users(db.Model):
             users = cls.query.all()
             return {'users': [UserResponseSchema.from_orm(user).dict() for user in users]}
         except SQLAlchemyError as e:
+            logger.error(f"There was an error while retrieving users: {str(e)}")
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
     # ### 3. User Creation Methods ###
@@ -116,7 +122,7 @@ class Users(db.Model):
             DatabaseError: If there was an error while creating a user.
             UserAlreadyExistsError: If user with the login already exists.
           """
-
+        logger.info("Creating new user")
         hashed_password = cls.generate_password_hash_or_none(user_data.password)
         is_admin = bool(user_data.is_admin)
         try:
@@ -135,10 +141,11 @@ class Users(db.Model):
             if new_user.source == 'manual' and new_user.oa_id is None:
                 new_user.oa_id = str(new_user.id)
                 db.session.commit()
-
+            logger.info(f"User created successfully: {new_user.login}")
             return new_user
         except SQLAlchemyError as e:
             db.session.rollback()
+            logger.error(f"There was an error while creating a user: {str(e)}")
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
@@ -157,15 +164,17 @@ class Users(db.Model):
             UserAlreadyExistsError: If user with the login already exists.
         """
         # TODO further: class constructor instead of method (?)
-
+        logger.info("Creating new user with check")
         try:
             if cls.query.filter_by(login=user_data.login).first():
+                logger.warning(f"User with login {user_data.login} already exists")
                 raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
 
             user = cls.__create(user_data)
             return user
 
         except SQLAlchemyError as e:
+            logger.error(f"There was an error while creating user: {str(e)}")
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
     @classmethod
@@ -188,16 +197,15 @@ class Users(db.Model):
         # TODO Further : Single Table Inheritance (STI) class OAuthUser
         # and it's constructor (?)
 
-        # oauth_user_data.login = cls.create_composite_login(oauth_user_data.source, oauth_user_data.oa_id)
+        logger.info("Creating or updating OAuth user")
         try:
             # is user already in database?
             user = cls.query.filter_by(login=oauth_user_data.login).first()
 
             if user is None:
                 # User doesn't exist, so create a new one
-                # print(login, first_name, last_name, is_admin, source, oa_id)
-
                 user = cls.__create(oauth_user_data)
+                logger.info(f"OAuth user created: {user.login}")
                 return user
             else:
                 # User exists, update the existing user information with the new details
@@ -206,9 +214,11 @@ class Users(db.Model):
                 user.is_admin = oauth_user_data.is_admin
 
                 db.session.commit()
+                logger.info(f"OAuth user updated: {user.login}")
                 return user
         except SQLAlchemyError as e:
             db.session.rollback()
+            logger.error(f"There was an error while updating the user: {str(e)}")
             raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
     # ### 4. Authentication Methods ###
@@ -243,15 +253,18 @@ class Users(db.Model):
         Raises:
             AuthenticationError: If login or password is invalid.
         """
+        logger.info(f"Authenticating user: {auth_request.login}")
         try:
             user = cls.query.filter(cls.login == auth_request.login).first()
 
             if user is None or not cls.check_password_hash(user.secret, auth_request.password):
+                logger.warning(f"Authentication failed for user: {auth_request.login}")
                 raise AuthenticationError('Invalid login or invalid password')
-
+            logger.info(f"User authenticated successfully: {user.login}")
             return user.__generate_auth_response()
 
         except SQLAlchemyError as e:
+            logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
     def authenticate_oauth(self) -> Dict:
@@ -262,7 +275,7 @@ class Users(db.Model):
             Dict: The generated token and expiration time.
 
         """
-
+        logger.info(f"Authenticating OAuth user: {self.login}")
         return self.__generate_auth_response()
 
     # ### 5. Object Representation Methods ###

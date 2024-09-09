@@ -83,7 +83,7 @@ class TokenService:
             logger.info("Token successfully verified")
             return AuthPayload(**decoded)
         except jwt.ExpiredSignatureError:
-            logger.error("Token expired")
+            logger.warning("Token expired")
             raise TokenExpired("Token expired. Get new one")
         except jwt.InvalidTokenError:
             logger.error("Invalid token")
