@@ -159,7 +159,7 @@ def auth_yandex_callback():
         authentication = user.authenticate_oauth()
 
     except DatabaseError as e:
-        logger.error(f"There was an error while syncing the user from yandex: {str(e)}"')
+        logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
         raise DatabaseError(f"There was an error while syncing the user from yandex: {str(e)}") from e
 
     logger.info("Yandex user authenticated successfully")
