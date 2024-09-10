@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class YandexOAuthService:
     @staticmethod
     def get_token_from_code(auth_code: str) -> str:
-        logger.info("Attempting to exchange auth code for token")
+        logger.debug("Attempting to exchange auth code for token")
         yandex_url = 'https://oauth.yandex.ru/token'
         client_id = os.getenv('YANDEX_ID')
         client_secret = os.getenv('YANDEX_SECRET')
@@ -32,7 +32,7 @@ class YandexOAuthService:
 
     @staticmethod
     def get_user_info(access_token: str) -> YandexUserInfo:
-        logger.info("Fetching user info from Yandex")
+        logger.debug("Fetching user info from Yandex")
         headers = {'Authorization': f'OAuth {access_token}'}
         yandex_url = 'https://login.yandex.ru/info'
 
@@ -57,7 +57,8 @@ class YandexOAuthService:
 
     @staticmethod
     def yandex_user_info_to_oauth(user_info: YandexUserInfo) -> OAuthUserCreateSchema:
-        logger.info(f"Converting Yandex user info to OAuth schema for user {user_info.first_name} {user_info.last_name}")
+        logger.debug(
+            f"Converting Yandex user info to OAuth schema for user {user_info.first_name} {user_info.last_name}")
         oauth_user_data = OAuthUserCreateSchema(
             first_name=user_info.first_name,
             last_name=user_info.last_name,

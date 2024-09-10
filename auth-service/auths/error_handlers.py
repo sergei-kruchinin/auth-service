@@ -66,7 +66,7 @@ def register_error_handlers(app):
         return {'success': False, 'message': str(e)}, 401
 
     @app.errorhandler(CustomValidationError)
-    def handle_validation_error(e): #  TODO different : warning where bad login or password and error where bad data
+    def handle_validation_error(e):
         logger.error(f"Validation Error: {str(e)}")
         return {'success': False, 'message': str(e)}, 400  # or 401?
 

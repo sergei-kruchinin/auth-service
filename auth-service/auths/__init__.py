@@ -4,6 +4,11 @@ import os
 from dotenv import load_dotenv
 # from flask_migrate import Migrate
 from .error_handlers import register_error_handlers
+import logging
+from .config_logging import setup_logging
+setup_logging()
+
+
 # Load .env file
 load_dotenv()
 

@@ -139,7 +139,7 @@ def auth_yandex_callback():
                 access_token = YandexOAuthService.get_token_from_code(auth_code)
             except requests.exceptions.RequestException as e:
                 logger.error(f'Yandex OAuth error: {str(e)}')
-                raise OAuthServerError(f'Yandex OAuth error')
+                raise OAuthTokenRetrievalError(f'Yandex OAuth error')
 
     if access_token is None:
         logger.error('access_token is None: Token or authorization code is missing')
@@ -152,7 +152,7 @@ def auth_yandex_callback():
         logger.error(f'Unable to retrieve user data: {str(e)}')
         raise OAuthUserDataRetrievalError(f'Unable to retrieve user data') from e
     except ValidationError as e:
-        logger.error(f"Unable to retrieve user data: {str(e)}")
+        logger.error(f"Invalid user data received from Yandex: {str(e)}")
         raise CustomValidationError(f'Invalid user data received from Yandex') from e
 
     # add to our database (or update)
@@ -292,13 +292,14 @@ def users_create(_, verification):
     try:
         user_data = UserCreateInputSchema(**json_data)
     except ValidationError as e:
-        logger.error(f"Not Correct UserCreateInputSchema for manual user: {str(e)}")
-        raise CustomValidationError(f"Invalid login format") from e
+        logger.warning(f"Not Correct UserCreateInputSchema for manual user: {str(e)}")
+        raise InsufficientData(f"Invalid login format") from e
 
     try:
         Users.create_with_check(user_data)
     except UserAlreadyExistsError as e:
-        raise UserAlreadyExistsError(e) from e
+        logger.warning(f"User with login already exists: {str(e)}")
+        raise
     except DatabaseError as e:
         logger.error(f"There was an error while creating a user: {str(e)}")
         raise DatabaseError(f"There was an error while creating a user") from e

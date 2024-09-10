@@ -122,7 +122,7 @@ class Users(db.Model):
             DatabaseError: If there was an error while creating a user.
             UserAlreadyExistsError: If user with the login already exists.
           """
-        logger.info("Creating new user")
+        logger.debug("Creating new user")
         hashed_password = cls.generate_password_hash_or_none(user_data.password)
         is_admin = bool(user_data.is_admin)
         try:
@@ -164,7 +164,7 @@ class Users(db.Model):
             UserAlreadyExistsError: If user with the login already exists.
         """
         # TODO further: class constructor instead of method (?)
-        logger.info("Creating new user with check")
+        logger.debug("Creating new user with check")
         try:
             if cls.query.filter_by(login=user_data.login).first():
                 logger.warning(f"User with login {user_data.login} already exists")
@@ -197,7 +197,7 @@ class Users(db.Model):
         # TODO Further : Single Table Inheritance (STI) class OAuthUser
         # and it's constructor (?)
 
-        logger.info("Creating or updating OAuth user")
+        logger.debug("Creating or updating OAuth user")
         try:
             # is user already in database?
             user = cls.query.filter_by(login=oauth_user_data.login).first()
@@ -253,7 +253,7 @@ class Users(db.Model):
         Raises:
             AuthenticationError: If login or password is invalid.
         """
-        logger.info(f"Authenticating user: {auth_request.login}")
+        logger.debug(f"Authenticating user: {auth_request.login}")
         try:
             user = cls.query.filter(cls.login == auth_request.login).first()
 
@@ -275,7 +275,7 @@ class Users(db.Model):
             Dict: The generated token and expiration time.
 
         """
-        logger.info(f"Authenticating OAuth user: {self.login}")
+        logger.debug(f"Authenticating OAuth user: {self.login}")
         return self.__generate_auth_response()
 
     # ### 5. Object Representation Methods ###
