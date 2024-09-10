@@ -1,4 +1,4 @@
-# error_handlers.py
+# auths > error_handlers.py
 
 from .exceptions import *
 from requests.exceptions import SSLError, ConnectionError

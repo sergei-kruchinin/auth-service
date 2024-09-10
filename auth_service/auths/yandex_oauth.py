@@ -1,4 +1,4 @@
-# yandex_oauth.py
+# auths > yandex_oauth.py
 
 import base64
 import requests
@@ -10,8 +10,23 @@ logger = logging.getLogger(__name__)
 
 
 class YandexOAuthService:
+    """Service for handling Yandex OAuth operations."""
+
     @staticmethod
     def get_token_from_code(auth_code: str) -> str:
+        """
+        Exchange authorization code for access token from Yandex.
+
+        Args:
+            auth_code (str): Authorization code received from Yandex.
+
+        Returns:
+            str: Access token received from Yandex.
+
+        Raises:
+            requests.exceptions.RequestException: If there's an error during the request.
+        """
+
         logger.debug("Attempting to exchange auth code for token")
         yandex_url = 'https://oauth.yandex.ru/token'
         client_id = os.getenv('YANDEX_ID')
@@ -32,6 +47,19 @@ class YandexOAuthService:
 
     @staticmethod
     def get_user_info(access_token: str) -> YandexUserInfo:
+        """
+        Fetch user info from Yandex using access token.
+
+        Args:
+            access_token (str): Access token received from Yandex.
+
+        Returns:
+            YandexUserInfo: Parsed user info.
+
+        Raises:
+            requests.exceptions.RequestException: If there's an error during the request.
+            ValidationError: If the retrieved user info is invalid.
+        """
         logger.debug("Fetching user info from Yandex")
         headers = {'Authorization': f'OAuth {access_token}'}
         yandex_url = 'https://login.yandex.ru/info'
@@ -57,6 +85,15 @@ class YandexOAuthService:
 
     @staticmethod
     def yandex_user_info_to_oauth(user_info: YandexUserInfo) -> OAuthUserCreateSchema:
+        """
+        Convert Yandex user info to OAuth schema.
+
+        Args:
+            user_info (YandexUserInfo): User info retrieved from Yandex.
+
+        Returns:
+            OAuthUserCreateSchema: Converted user info in OAuth schema format.
+        """
         logger.debug(
             f"Converting Yandex user info to OAuth schema for user {user_info.first_name} {user_info.last_name}")
         oauth_user_data = OAuthUserCreateSchema(

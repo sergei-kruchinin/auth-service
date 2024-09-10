@@ -1,8 +1,9 @@
+# auths > yandex_html.py
 
-
-
+# temporary realization
 # js code by yandex to OAuth 2.0
 # API callback called without any page modification
+
 def auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri):
     html_code = f'''
 <html>
@@ -48,7 +49,6 @@ window.YaAuthSuggest.init(
     return html_code
 
 
-
 def auth_yandex_callback_html_code(callback_uri):
     html_code = f'''
 <html>
@@ -65,4 +65,3 @@ def auth_yandex_callback_html_code(callback_uri):
    </script>
 '''
     return html_code
-

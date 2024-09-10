@@ -1,4 +1,4 @@
-# models.py
+# auths > models.py
 from passlib.context import CryptContext
 # from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func

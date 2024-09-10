@@ -1,4 +1,4 @@
-# schemas.py
+# auths > schemas.py
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 import os
@@ -28,7 +28,6 @@ class AuthRequest(BaseModel):
     password: constr(min_length=8, strip_whitespace=True) = Field(
         ..., description="The plaintext password of the user"
     )
-
 
 class UserBaseSchema(BaseModel):
     login: constr(min_length=3, strip_whitespace=True)
