@@ -6,7 +6,7 @@ from . import db
 from .schemas import (AuthRequest, AuthPayload,
                       OAuthUserCreateSchema,
                       UserCreateInputSchema, UserResponseSchema)
-from .exceptions import *
+from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from .token_service import TokenService
 from typing import Dict, List
 from sqlalchemy.exc import SQLAlchemyError

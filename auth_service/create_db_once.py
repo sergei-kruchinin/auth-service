@@ -1,6 +1,10 @@
-from auths import db, app
+# create_db_once.py
+
+from auths import create_app, db
 from auths.models import Users
 from auths.schemas import UserCreateInputSchema
+
+app = create_app()
 
 with app.app_context():
     db.drop_all()  # only for debug

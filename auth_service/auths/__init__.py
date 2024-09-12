@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 from dotenv import load_dotenv
 from .error_handlers import register_error_handlers
-from .config.logging import setup_logging
+from .logging_conf import setup_logging
 
 # Load .env file
 load_dotenv()
