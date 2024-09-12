@@ -28,7 +28,7 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        from .routes import auth_bp
-        app.register_blueprint(auth_bp, url_prefix='/')
-
+        from .routes import register_all_routes, main_bp
+        register_all_routes()
+        app.register_blueprint(main_bp, url_prefix='/')
     return app

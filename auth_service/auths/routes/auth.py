@@ -4,11 +4,10 @@
 import requests
 from flask import request
 from ..models import *
-from ..yandex_html import *
 from ..schemas import AuthRequest, UserCreateInputSchema
 from pydantic import ValidationError
 from ..exceptions import *
-from .dependencies import token_required
+from .dependencies import token_required, get_yandex_uri
 
 import os
 from ..yandex_oauth import YandexOAuthService
@@ -121,11 +120,6 @@ def register_routes(bp):
         logger.info("Yandex user authenticated successfully")
         return authentication, 200
 
-    def generate_yandex_iframe_uri():
-        yandex_id = os.getenv('YANDEX_ID')
-        iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
-        return iframe_uri
-
     @bp.route("/auth/yandex/by_code", methods=["GET"])
     def auth_yandex_by_code():
         """
@@ -137,7 +131,7 @@ def register_routes(bp):
         200: JSON containing the iframe URI
         """
         logger.info("Yandex OAuth by code called")
-        iframe_uri = generate_yandex_iframe_uri()
+        iframe_uri = get_yandex_uri()
         return {'iframe_uri': iframe_uri}
 
     # ### 2. Token Verification and Invalidation Methods ###
@@ -280,66 +274,3 @@ def register_routes(bp):
         except DatabaseError as e:
             logger.error(f"here was an error while retrieving the users list. DatabaseError: {e}")
             raise DatabaseError(f"There was an error while retrieving the users list.") from e
-
-    # ### 4. Root Route Method: ###
-
-    @bp.route("/", methods=["GET"])
-    def site_root():
-        """
-        Root route for the application (Temporary/Dummy)
-
-        Method: GET
-
-        Returns:
-        200: HTML page with "hello world".
-        """
-        logger.info("Root route called")
-        return '<html><body>hello world</body></html>'
-
-    # ### 5. Frontend Imitation Methods for testing Yandex OAuth 2.0 ###
-
-    @bp.route("/auth/yandex/by_code.html", methods=["GET"])
-    def auth_yandex_by_code_html():
-        """
-        Route for displaying the link to Yandex OAuth authorization page.
-
-        Method: GET
-
-        Returns:
-        200: HTML link to Yandex OAuth iframe URI
-        """
-        logger.info("Yandex OAuth by code HTML called")
-        iframe_uri = generate_yandex_iframe_uri()
-        return f'<a href="{iframe_uri}">{iframe_uri}</a>'
-
-    @bp.route("/auth/yandex.html", methods=["GET"])
-    def auth_yandex_html():
-        """
-        Route for displaying the Yandex OAuth authorization page.
-
-        Method: GET
-
-        Returns:
-        200: HTML page for Yandex OAuth
-        """
-        logger.info("Yandex OAuth HTML called")
-        yandex_id = os.getenv('YANDEX_ID')
-        api_domain = os.getenv('API_DOMAIN')
-        redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
-        callback_uri = f"https://{api_domain}/auth/yandex/callback"
-        return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
-
-    @bp.route("/auth/yandex/callback.html", methods=["GET"])
-    def auth_yandex_callback_html():
-        """
-        Route for handling Yandex OAuth callback and presenting a helper page.
-
-        Method: GET
-
-        Returns:
-        200: HTML page for Yandex OAuth callback
-        """
-        logger.info("Yandex OAuth callback HTML called")
-        api_domain = os.getenv('API_DOMAIN')
-        callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
-        return auth_yandex_callback_html_code(callback_uri)

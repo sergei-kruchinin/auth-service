@@ -79,13 +79,17 @@ Auth Service is a robust and modular authentication and authorization system bui
 auth_service/
 ├─── auths/
 │   ├── __init__.py
-│   ├── routes
+│   ├── routes/
 │   │  ├──  __init__.py  
 │   │  ├── auth.py
+│   │  ├── front_emu.py
+│   │  ├── yandex_html.py
 │   │  └── dependencies.py 
 │   ├── yandex_oauth.py
 │   ├── token_service.py
 │   ├── schemas.py
+│   ├── models.py
+│   ├── logger_config.py
 │   ├── exceptions.py
 │   └── error_handlers.py
 ├── app.py

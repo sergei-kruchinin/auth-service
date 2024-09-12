@@ -3,7 +3,7 @@ from flask import request
 import logging
 from ..token_service import TokenService
 from ..exceptions import *
-
+import os
 logger = logging.getLogger(__name__)
 
 
@@ -50,3 +50,9 @@ def token_required(f):
         return f(token, verification, *args, **kwargs)
 
     return decorated
+
+
+def get_yandex_uri():
+    yandex_id = os.getenv('YANDEX_ID')
+    iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
+    return iframe_uri
