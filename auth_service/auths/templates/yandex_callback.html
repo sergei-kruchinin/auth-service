@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-token-with-polyfills-latest.js"></script>
+  </head>
+  <body>
+    <script>
+      window.onload = function() {
+        window.YaSendSuggestToken("{{ callback_uri }}", {
+
+        });
+      };
+    </script>
+  </body>
+</html>

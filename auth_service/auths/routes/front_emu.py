@@ -1,17 +1,17 @@
 # auths > routes > front_emu.py
 
 from ..models import *
-from .yandex_html import *
+# from .yandex_html import *
 from .dependencies import get_yandex_uri
+from flask import render_template, Blueprint
 
 import os
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
-def register_routes(bp):
+def register_routes(bp: Blueprint):
 
     # ### 4. Root Route Method: ###
 
@@ -26,7 +26,7 @@ def register_routes(bp):
         200: HTML page with "hello world".
         """
         logger.info("Root route called")
-        return '<html><body>hello world</body></html>'
+        return '<html><body>Hello world</body></html>'
 
     # ### 5. Frontend Imitation Methods for testing Yandex OAuth 2.0 ###
 
@@ -59,7 +59,9 @@ def register_routes(bp):
         api_domain = os.getenv('API_DOMAIN')
         redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
         callback_uri = f"https://{api_domain}/auth/yandex/callback"
-        return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
+        # return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
+        return render_template('auth_yandex.html', yandex_id=yandex_id, api_domain=api_domain,
+                               redirect_uri=redirect_uri, callback_uri=callback_uri)
 
     @bp.route("/auth/yandex/callback.html", methods=["GET"])
     def auth_yandex_callback_html():
@@ -74,4 +76,5 @@ def register_routes(bp):
         logger.info("Yandex OAuth callback HTML called")
         api_domain = os.getenv('API_DOMAIN')
         callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
-        return auth_yandex_callback_html_code(callback_uri)
+        # return auth_yandex_callback_html_code(callback_uri)
+        return render_template('yandex_callback.html', callback_uri=callback_uri)

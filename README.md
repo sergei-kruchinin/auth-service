@@ -83,8 +83,10 @@ auth_service/
 │   │  ├──  __init__.py  
 │   │  ├── auth.py
 │   │  ├── front_emu.py
-│   │  ├── yandex_html.py
-│   │  └── dependencies.py 
+│   │  └── dependencies.py
+│   ├── templates/
+│   │  ├── auth_yandex.html
+│   │  └── yandex_callback.html
 │   ├── yandex_oauth.py
 │   ├── token_service.py
 │   ├── schemas.py

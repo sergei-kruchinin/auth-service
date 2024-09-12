@@ -2,14 +2,13 @@
 
 
 import requests
-from flask import request
+from flask import request, Blueprint
 from ..models import *
 from ..schemas import AuthRequest, UserCreateInputSchema
 from pydantic import ValidationError
 from ..exceptions import *
 from .dependencies import token_required, get_yandex_uri
 
-import os
 from ..yandex_oauth import YandexOAuthService
 import logging
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 # ### 1. User Authentication Methods: ###
 
 
-def register_routes(bp):
+def register_routes(bp: Blueprint):
     @bp.route("/auth", methods=["POST"])
     def auth():
         """
