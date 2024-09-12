@@ -44,19 +44,20 @@ Auth Service is a robust and modular authentication and authorization system bui
 
 2. Create a virtual environment and activate it:
     ```sh
-    python -m venv venv
+    python3 -m venv venv
     source venv/bin/activate  # On Windows use `venv\Scripts\activate`
     ```
 
 3. Install the dependencies:
     ```sh
-    pip install -r requirements.txt
+    pip3 install -r requirements.txt
     ```
 
 4. Configure your environment variables in a `.env` file:
     ```plaintext
     AUTH_SECRET=YOUR_SECRET_KEY
     EXPIRES_SECONDS=86400
+    API_DOMAIN=your_domain
     YANDEX_ID=YOUR_YANDEX_CLIENT_ID
     YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
     ```
