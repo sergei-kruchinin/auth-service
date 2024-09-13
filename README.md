@@ -106,7 +106,8 @@ auth_service/
 Environment variables are used to configure the service. Key variables include:
 
 - `AUTH_SECRET`: Secret key used for JWT encoding and decoding.
-- `EXPIRES_SECONDS`: Expiration time for JWT tokens in seconds.
+- `EXPIRES_SECONDS`: Expiration time for JWT tokens in seconds. 
+- `API_DOMAIN`: Domain of your web app.
 - `YANDEX_ID`: Yandex OAuth client ID.
 - `YANDEX_SECRET`: Yandex OAuth client secret.
 
@@ -133,8 +134,8 @@ Environment variables are used to configure the service. Key variables include:
     GET /auth/yandex/by_code.html 
     ```
     
-    to get a html page with link to yandex oauth page with yor yandex client id (YOUR_YANDEX_ID).
-    After granting authentication on yandex page it will redirect your to page 
+    to get a html page with link to yandex oauth page with your yandex client id (YOUR_YANDEX_ID).
+    After granting authentication on yandex page it will redirect you to page 
     `/auth/yandex/callback?code=your_auth_code`
     which gives you auth token. If it's the first authorization user will be crated automatically.
 
