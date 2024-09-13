@@ -92,6 +92,7 @@ auth_service/
 │   ├── token_service.py
 │   ├── schemas.py
 │   ├── models.py
+│   ├── password_hash.py
 │   ├── logger_config.py
 │   ├── exceptions.py
 │   └── error_handlers.py
