@@ -1,5 +1,5 @@
 # auths > models.py
-from passlib.context import CryptContext
+
 # from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
 from . import db
@@ -10,6 +10,7 @@ from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseErr
 from .token_service import TokenService
 from typing import Dict, List
 from sqlalchemy.exc import SQLAlchemyError
+from .password_hash import PasswordHash
 import logging
 logger = logging.getLogger(__name__)
 # from .database import Base
@@ -32,57 +33,6 @@ class Users(db.Model):
         db.DateTime(timezone=True),
         onupdate=func.now()
     )
-    pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-
-    # ### 1. Password Handling Methods ###
-
-    @classmethod
-    def generate_password_hash(cls, password: str) -> str:
-        """
-        Generate a salted hash from plaintext password.
-
-        Args:
-            password (str): The plaintext password.
-
-        Returns:
-            str: The hashed password.
-        """
-        logger.info("Generating password hash")
-        return cls.pwd_context.hash(password)
-
-    @classmethod
-    def check_password_hash(cls, hashed_password: str, plain_password: str) -> bool:
-        """
-        Verify if the provided plaintext password matches the hashed password.
-
-        Args:
-            hashed_password (str): The hashed password stored in the database.
-            plain_password (str): The plaintext password provided by the user.
-
-        Returns:
-            bool: True if the passwords match, False otherwise.
-        """
-        logger.info("Checking password hash")
-        return cls.pwd_context.verify(plain_password, hashed_password)
-
-    @classmethod
-    def generate_password_hash_or_none(cls, password: str | None) -> str | None:
-        """
-        Generate a password hash or return None if the password is None.
-
-        Args:
-            password (str or None): The plaintext password or None.
-
-        Returns:
-            str or None: The hashed password or None.
-        """
-        if password is None:
-            return None
-        try:
-            return cls.generate_password_hash(password)
-        except AttributeError as e:
-            logger.error(f"Password should be a string, got None: {str(e)}")
-            raise TypeError("Password should be a string") from e
 
     # ### 2. User Management Methods ###
 
@@ -123,7 +73,7 @@ class Users(db.Model):
             UserAlreadyExistsError: If user with the login already exists.
           """
         logger.debug("Creating new user")
-        hashed_password = cls.generate_password_hash_or_none(user_data.password)
+        hashed_password = PasswordHash.generate_or_none(user_data.password)
         is_admin = bool(user_data.is_admin)
         try:
             new_user = cls(
@@ -257,7 +207,7 @@ class Users(db.Model):
         try:
             user = cls.query.filter(cls.login == auth_request.login).first()
 
-            if user is None or not cls.check_password_hash(user.secret, auth_request.password):
+            if user is None or not PasswordHash.check(user.secret, auth_request.password):
                 logger.warning(f"Authentication failed for user: {auth_request.login}")
                 raise AuthenticationError('Invalid login or invalid password')
             logger.info(f"User authenticated successfully: {user.login}")
