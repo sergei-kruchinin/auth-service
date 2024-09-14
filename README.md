@@ -44,8 +44,8 @@ Auth Service is a robust and modular authentication and authorization system bui
 
 2. Create a virtual environment and activate it:
     ```sh
-    python3 -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    python3 -m venv .venv
+    source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
     cd auth_service
     ```
    
