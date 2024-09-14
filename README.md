@@ -39,15 +39,16 @@ Auth Service is a robust and modular authentication and authorization system bui
 1. Clone the repository:
     ```sh
     git clone https://github.com/sergei-kruchinin/flask-auth-service.git
-    cd flask-auth-service/auth_service
+    cd flask-auth-service
     ```
 
 2. Create a virtual environment and activate it:
     ```sh
     python3 -m venv venv
     source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    cd auth_service
     ```
-
+   
 3. Install the dependencies:
     ```sh
     pip3 install -r requirements.txt

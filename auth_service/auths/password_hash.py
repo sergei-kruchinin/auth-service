@@ -1,3 +1,5 @@
+# auths > password_hash.py
+
 from passlib.context import CryptContext
 import logging
 logger = logging.getLogger(__name__)

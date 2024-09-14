@@ -1,3 +1,5 @@
+# auths > logging.conf
+
 import logging
 
 
@@ -14,6 +16,7 @@ def setup_logging():
     auths_yandex_oauth_logger = logging.getLogger('auths.yandex_oauth')
     auths_error_handlers_logger = logging.getLogger('auths.error_handlers')
     auths_token_service_logger = logging.getLogger('auths.token_service')
+    password_hash_logger = logging.getLogger('auths.password_hash')
 
     # Setup logging levels
     auths_models_logger.setLevel(logging.INFO)
@@ -23,3 +26,4 @@ def setup_logging():
     auths_yandex_oauth_logger.setLevel(logging.INFO)
     auths_error_handlers_logger.setLevel(logging.INFO)
     auths_token_service_logger.setLevel(logging.INFO)
+    password_hash_logger.setLevel(logging.INFO)

@@ -1,17 +1,24 @@
-# auths > init.py
+# auths > __init__.py
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 import os
 from dotenv import load_dotenv
+
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, scoped_session
+
 from .error_handlers import register_error_handlers
 from .logging_conf import setup_logging
 
 # Load .env file
 load_dotenv()
 
-# instantiate the Flask app
-db = SQLAlchemy()
+# Database setup
+basedir = os.path.abspath(os.path.dirname(__file__))
+Base = declarative_base()
+engine = create_engine('sqlite:///' + os.path.join(basedir, 'users.db'))
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 
 def create_app():
@@ -20,15 +27,12 @@ def create_app():
     app = Flask(__name__)
     app = register_error_handlers(app)
 
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'users.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
-
-    db.init_app(app)
-
-    with app.app_context():
-        from .routes import register_all_routes, main_bp
-        register_all_routes()
-        app.register_blueprint(main_bp, url_prefix='/')
+    from .routes import register_all_routes, main_bp
+    register_all_routes()
+    app.register_blueprint(main_bp, url_prefix='/')
     return app
+
+
+def init_db():
+    import auth_service.auths.models
+    Base.metadata.create_all(bind=engine)

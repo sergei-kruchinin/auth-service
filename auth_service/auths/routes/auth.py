@@ -49,7 +49,7 @@ def register_routes(bp: Blueprint):
         # If authentication fails, this will raise an AuthenticationError
         # which will be caught by the error handler and a proper JSON response will be forme
         try:
-            authentication = Users.authenticate(auth_request)
+            authentication = User.authenticate(auth_request)
         except AuthenticationError as e:
             raise AuthenticationError('Invalid login or password') from e
 
@@ -108,7 +108,7 @@ def register_routes(bp: Blueprint):
         # add to our database (or update)
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
-            user = Users.create_or_update_oauth_user(oauth_user_data)
+            user = User.create_or_update_oauth_user(oauth_user_data)
 
             authentication = user.authenticate_oauth()
 
@@ -234,7 +234,7 @@ def register_routes(bp: Blueprint):
             raise InsufficientData(f"Invalid login format") from e
 
         try:
-            Users.create_with_check(user_data)
+            User.create_with_check(user_data)
         except UserAlreadyExistsError as e:
             logger.warning(f"User with login already exists: {str(e)}")
             raise
@@ -266,7 +266,7 @@ def register_routes(bp: Blueprint):
             logger.warning("is_admin is False")
             raise AdminRequiredError('Access Denied')
         try:
-            users_list_json = Users.list()
+            users_list_json = User.list()
             logger.info("Users list retrieved successfully")
             return users_list_json
 

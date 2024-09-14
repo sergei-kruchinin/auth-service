@@ -1,3 +1,5 @@
+# auths > routes > __init__.py
+
 from flask import Blueprint
 from .auth import register_routes as register_auth_routes
 from .front_emu import register_routes as register_front_emu_routes

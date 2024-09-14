@@ -29,6 +29,7 @@ class AuthRequest(BaseModel):
         ..., description="The plaintext password of the user"
     )
 
+
 class UserBaseSchema(BaseModel):
     login: constr(min_length=3, strip_whitespace=True)
     first_name: str | None = Field(default=None, description="The first name of the user")

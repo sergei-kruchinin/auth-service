@@ -1,9 +1,8 @@
 Flask==3.0.3
-flask_sqlalchemy==3.1.1
 passlib==1.7.4
 pydantic==2.9.1
-PyJWT==2.8.0
 PyJWT==2.9.0
 python-dotenv==1.0.1
 Requests==2.32.3
 SQLAlchemy==2.0.31
+argon2_cffi==23.1.0

@@ -1,36 +1,35 @@
 # auths > models.py
 
-# from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.sql import func
-from . import db
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy.exc import SQLAlchemyError
+from . import Base, db_session
 from .schemas import (AuthRequest, AuthPayload,
                       OAuthUserCreateSchema,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from .token_service import TokenService
-from typing import Dict, List
-from sqlalchemy.exc import SQLAlchemyError
 from .password_hash import PasswordHash
+from typing import Dict, List
 import logging
 logger = logging.getLogger(__name__)
-# from .database import Base
 
 
-class Users(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    login = db.Column(db.String(128), unique=True, nullable=False)
-    first_name = db.Column(db.String(128), nullable=True)
-    last_name = db.Column(db.String(128), nullable=True)
-    secret = db.Column(db.String(256), nullable=True)
-    is_admin = db.Column(db.Boolean, nullable=False)
-    source = db.Column(db.String(50), nullable=True)
-    oa_id = db.Column(db.String(256), nullable=True)
-    created_at = db.Column(
-        db.DateTime(timezone=True),
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    login = Column(String(128), unique=True, nullable=False)
+    first_name = Column(String(128), nullable=True)
+    last_name = Column(String(128), nullable=True)
+    secret = Column(String(256), nullable=True)
+    is_admin = Column(Boolean, nullable=False)
+    source = Column(String(50), nullable=True)
+    oa_id = Column(String(256), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
         server_default=func.now()
     )
-    updated_at = db.Column(
-        db.DateTime(timezone=True),
+    updated_at = Column(
+        DateTime(timezone=True),
         onupdate=func.now()
     )
 
@@ -48,7 +47,7 @@ class Users(db.Model):
             DatabaseError: If there was an error while retrieving users.
         """
         try:
-            users = cls.query.all()
+            users = db_session.query(cls).all()
             return {'users': [UserResponseSchema.from_orm(user).dict() for user in users]}
         except SQLAlchemyError as e:
             logger.error(f"There was an error while retrieving users: {str(e)}")
@@ -57,7 +56,7 @@ class Users(db.Model):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def __create(cls, user_data: OAuthUserCreateSchema | UserCreateInputSchema) -> 'Users':
+    def __create(cls, user_data: OAuthUserCreateSchema | UserCreateInputSchema) -> 'User':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
@@ -85,21 +84,21 @@ class Users(db.Model):
                 source=user_data.source,
                 oa_id=user_data.oa_id
             )
-            db.session.add(new_user)
-            db.session.commit()
+            db_session.add(new_user)
+            db_session.commit()
 
             if new_user.source == 'manual' and new_user.oa_id is None:
                 new_user.oa_id = str(new_user.id)
-                db.session.commit()
+                db_session.commit()
             logger.info(f"User created successfully: {new_user.login}")
             return new_user
         except SQLAlchemyError as e:
-            db.session.rollback()
+            db_session.rollback()
             logger.error(f"There was an error while creating a user: {str(e)}")
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
-    def create_with_check(cls, user_data: UserCreateInputSchema) -> 'Users':
+    def create_with_check(cls, user_data: UserCreateInputSchema) -> 'User':
         """
         Create a new user after checking if the user already exists.
         If user exists, raises a UserAlreadyExistsError indicating user already exists.
@@ -116,7 +115,7 @@ class Users(db.Model):
         # TODO further: class constructor instead of method (?)
         logger.debug("Creating new user with check")
         try:
-            if cls.query.filter_by(login=user_data.login).first():
+            if db_session.query(cls).filter_by(login=user_data.login).first():
                 logger.warning(f"User with login {user_data.login} already exists")
                 raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
 
@@ -128,7 +127,7 @@ class Users(db.Model):
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
     @classmethod
-    def create_or_update_oauth_user(cls, oauth_user_data: OAuthUserCreateSchema) -> 'Users':
+    def create_or_update_oauth_user(cls, oauth_user_data: OAuthUserCreateSchema) -> 'User':
         """
         Create or update a user for OAuth 2.0 authorization.
         It always updates user data from OAuth Provider,
@@ -150,7 +149,7 @@ class Users(db.Model):
         logger.debug("Creating or updating OAuth user")
         try:
             # is user already in database?
-            user = cls.query.filter_by(login=oauth_user_data.login).first()
+            user = db_session.query(cls).filter_by(login=oauth_user_data.login).first()
 
             if user is None:
                 # User doesn't exist, so create a new one
@@ -163,11 +162,11 @@ class Users(db.Model):
                 user.last_name = oauth_user_data.last_name
                 user.is_admin = oauth_user_data.is_admin
 
-                db.session.commit()
+                db_session.commit()
                 logger.info(f"OAuth user updated: {user.login}")
                 return user
         except SQLAlchemyError as e:
-            db.session.rollback()
+            db_session.rollback()
             logger.error(f"There was an error while updating the user: {str(e)}")
             raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
@@ -205,7 +204,7 @@ class Users(db.Model):
         """
         logger.debug(f"Authenticating user: {auth_request.login}")
         try:
-            user = cls.query.filter(cls.login == auth_request.login).first()
+            user = db_session.query(cls).filter_by(login=auth_request.login).first()
 
             if user is None or not PasswordHash.check(user.secret, auth_request.password):
                 logger.warning(f"Authentication failed for user: {auth_request.login}")
