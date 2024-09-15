@@ -2,12 +2,12 @@
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
-from . import Base, db_session
+from auth_service.auths import Base, db_session
 from .schemas import (AuthRequest, AuthPayload,
                       OAuthUserCreateSchema,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
-from .token_service import TokenService
+from .token_service_redis import TokenService
 from .password_hash import PasswordHash
 from typing import Dict, List
 import logging

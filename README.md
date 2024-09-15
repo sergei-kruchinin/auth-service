@@ -30,6 +30,7 @@ Auth Service is a robust and modular authentication and authorization system bui
 - Python 3.8+
 - Flask
 - SQLAlchemy
+- Redis (but you can still manage without it for now)
 - Requests
 - Pydantic
 - Other dependencies listed in `requirements.txt`
@@ -49,12 +50,17 @@ Auth Service is a robust and modular authentication and authorization system bui
     cd auth_service
     ```
    
-3. Install the dependencies:
+3. Install Redis 
+   ```shell
+    sudo apt install redis redis-server redis-tools -y  # for debian like os
+    ```
+
+4. Install the dependencies:
     ```sh
     pip3 install -r requirements.txt
     ```
-
-4. Configure your environment variables in a `.env` file:
+   
+5.Configure your environment variables in a `.env` file:
     ```plaintext
     AUTH_SECRET=YOUR_SECRET_KEY
     EXPIRES_SECONDS=86400
@@ -91,6 +97,7 @@ auth_service/
 │   │  └── yandex_callback.html
 │   ├── yandex_oauth.py
 │   ├── token_service.py
+│   ├── token_service_redis.py
 │   ├── schemas.py
 │   ├── models.py
 │   ├── password_hash.py
@@ -186,6 +193,12 @@ Environment variables are used to configure the service. Key variables include:
 ## Error Handling
 
 Errors are handled consistently across the service. Custom exceptions are defined in `auths/exceptions.py` and registered in `auths/error_handlers.py`.
+
+## Other Notices
+
+Now blacklist of revoked tokens will be stored in redis. The new module is the token_service_redis.py, which works with redis, the old module token_service still uses SQLAlchemy.
+By the way you can user token_service.py instead of token_service_redis.py just changing imports in some modules.
+I could change not TokenService class, but create different realization of BlackList but SQLAlchemy for tokens will be not supported soon.
 
 ## License
 
