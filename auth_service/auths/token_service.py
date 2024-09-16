@@ -4,7 +4,6 @@ import jwt
 import os
 from datetime import datetime, timezone, timedelta
 import logging
-
 import redis
 
 from .schemas import AuthPayload, AuthResponse
@@ -12,7 +11,8 @@ from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseEr
 from redis import Redis, RedisError
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
-EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
+# Set 60 to see deleting invalidated token from redis when ttl will expired
+EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS', 60))
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
@@ -44,6 +44,31 @@ class TokenService:
         return AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
 
     @staticmethod
+    def get_token_ttl(token: str) -> int:
+        """
+        Calculate the remaining time-to-live (TTL) for a JWT token.
+
+        Args:
+            token (str): The JWT token.
+
+        Returns:
+            int: The remaining TTL in seconds.
+        """
+        try:
+            decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'], options={"verify_signature": False})
+            exp = decoded.get('exp')
+            if not exp:
+                raise TokenInvalid("Token does not contain 'exp' claim")
+
+            current_time = datetime.now(timezone.utc).timestamp()
+            ttl = exp - current_time
+            # If the token has expired, the TTL will be negative. In this case, it will return 0.
+            # Otherwise, it will return the actual time-to-live.
+            return max(0, int(ttl))
+        except jwt.DecodeError:
+            raise TokenInvalid("Invalid token")
+
+    @staticmethod
     def add_to_blacklist(token: str):
         """
         Add a token to the blacklist.
@@ -54,11 +79,14 @@ class TokenService:
         logger.info(f"Adding token to blacklist: {token}")
 
         try:
-            r.set(token, 'revoked')
+            ttl = TokenService.get_token_ttl(token)
+            r.setex(token, ttl, 'revoked')
             logger.info(f"Token added to blacklist: {token}")
         except RedisError as e:
             logger.error(f"Error adding token to blacklist: {str(e)}")
             raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
+        except TokenInvalid:
+            raise
 
     @staticmethod
     def is_blacklisted(token: str) -> bool:
@@ -108,4 +136,3 @@ class TokenService:
         except jwt.InvalidTokenError:
             logger.error("Invalid token")
             raise TokenInvalid("Invalid token")
-
