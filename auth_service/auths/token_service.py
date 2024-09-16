@@ -11,7 +11,7 @@ from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseEr
 from redis import Redis, RedisError
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
-# Set 60 to see deleting invalidated token from redis when ttl will expired
+# Set 60 to see deleting invalidated token from redis when ttl will be expired
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS', 60))
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
