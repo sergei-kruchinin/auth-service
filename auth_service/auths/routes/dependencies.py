@@ -3,7 +3,7 @@
 from functools import wraps
 from flask import request
 import logging
-from ..token_service_redis import TokenService
+from ..token_service import TokenService
 from ..exceptions import *
 import os
 logger = logging.getLogger(__name__)

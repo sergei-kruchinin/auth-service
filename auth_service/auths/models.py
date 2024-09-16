@@ -7,7 +7,7 @@ from .schemas import (AuthRequest, AuthPayload,
                       OAuthUserCreateSchema,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
-from .token_service_redis import TokenService
+from .token_service import TokenService
 from .password_hash import PasswordHash
 from typing import Dict, List
 import logging

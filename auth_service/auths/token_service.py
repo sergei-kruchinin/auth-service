@@ -4,15 +4,21 @@ import jwt
 import os
 from datetime import datetime, timezone, timedelta
 import logging
+
+import redis
+
 from .schemas import AuthPayload, AuthResponse
-from . import db_session, Base
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
-from sqlalchemy import Column, String
-from sqlalchemy.exc import SQLAlchemyError
+from redis import Redis, RedisError
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+
 logger = logging.getLogger(__name__)
+
+r = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
 
 
 class TokenService:
@@ -46,7 +52,13 @@ class TokenService:
             token (str): The JWT token to be added to the blacklist.
         """
         logger.info(f"Adding token to blacklist: {token}")
-        TokenService.Blacklist.add_token(token)
+
+        try:
+            r.set(token, 'revoked')
+            logger.info(f"Token added to blacklist: {token}")
+        except RedisError as e:
+            logger.error(f"Error adding token to blacklist: {str(e)}")
+            raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
 
     @staticmethod
     def is_blacklisted(token: str) -> bool:
@@ -59,9 +71,13 @@ class TokenService:
         Returns:
             bool: True if the token is blacklisted, False otherwise.
         """
-        result = TokenService.Blacklist.is_blacklisted(token)
-        logger.info(f"Token blacklisted: {result}")
-        return result
+        try:
+            result = r.exists(token)
+            logger.info(f"Checked blacklist status for token: {token}, Result: {result}")
+            return result == 1
+        except redis.RedisError as e:
+            logger.error(f"Error checking if token is blacklisted: {str(e)}")
+            raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
     @staticmethod
     def verify_token(token: str) -> AuthPayload:
@@ -93,49 +109,3 @@ class TokenService:
             logger.error("Invalid token")
             raise TokenInvalid("Invalid token")
 
-    class Blacklist(Base):
-        """
-        Inner class for managing the blacklist of tokens.
-        """
-        __tablename__ = 'blacklist_tokens'
-        token = Column(String(256), primary_key=True, nullable=False)
-
-        @classmethod
-        def add_token(cls, black_token: str):
-            """
-            Add a token to the blacklist.
-
-            Args:
-                black_token (str): The JWT token to be blacklisted.
-            """
-            try:
-                black_token_record = cls(token=black_token)
-                db_session.add(black_token_record)
-                db_session.commit()
-                logger.info(f"Token added to blacklist: {black_token}")
-            except Exception as e:
-                db_session.rollback()
-                logger.error(f"Error adding token to blacklist: {str(e)}")
-                raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
-
-        @classmethod
-        def is_blacklisted(cls, token: str) -> bool:
-            """
-            Check if a token is in the blacklist.
-
-            Args:
-                token (str): The JWT token to be checked.
-
-            Returns:
-                bool: True if the token is blacklisted, False otherwise.
-            """
-            try:
-                result = bool(db_session.query(cls).get(token))
-                logger.info(f"Checked blacklist status for token: {token}, Result: {result}")
-                return result
-            except SQLAlchemyError as e:
-                logger.error(f"Error checking if token is blacklisted: {str(e)}")
-                raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
-
-        def __repr__(self):
-            return f'In blacklist: {self.token}'

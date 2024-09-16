@@ -30,7 +30,7 @@ Auth Service is a robust and modular authentication and authorization system bui
 - Python 3.8+
 - Flask
 - SQLAlchemy
-- Redis (but you can still manage without it for now)
+- Redis
 - Requests
 - Pydantic
 - Other dependencies listed in `requirements.txt`
@@ -196,9 +196,7 @@ Errors are handled consistently across the service. Custom exceptions are define
 
 ## Other Notices
 
-Now blacklist of revoked tokens will be stored in redis. The new module is the token_service_redis.py, which works with redis, the old module token_service still uses SQLAlchemy.
-By the way you can user token_service.py instead of token_service_redis.py just changing imports in some modules.
-I could change not TokenService class, but create different realization of BlackList but SQLAlchemy for tokens will be not supported soon.
+Now blacklist of revoked tokens will be stored in redis.  
 
 ## License
 
