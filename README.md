@@ -97,7 +97,6 @@ auth_service/
 │   │  └── yandex_callback.html
 │   ├── yandex_oauth.py
 │   ├── token_service.py
-│   ├── token_service_redis.py
 │   ├── schemas.py
 │   ├── models.py
 │   ├── password_hash.py
