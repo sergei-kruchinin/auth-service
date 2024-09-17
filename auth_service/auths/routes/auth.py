@@ -56,14 +56,13 @@ def register_routes(bp: Blueprint):
         logger.info("User authenticated successfully")
 
         # Extract access and refresh tokens
-        access_token = authentication.tokens[TokenType.ACCESS.value].value
-        access_expires_in = authentication.tokens[TokenType.ACCESS.value].expires_in
-        refresh_token = authentication.tokens[TokenType.REFRESH.value].value
+        access_token = authentication.tokens[TokenType.ACCESS.value]
+        refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
         # Create JSON response with the access token
         response_body = {
-            "access_token": access_token,
-            "expires_in": access_expires_in
+            "access_token": access_token.value,
+            "expires_in": access_token.expires_in
         }
 
         # Create response object
@@ -72,7 +71,7 @@ def register_routes(bp: Blueprint):
         # Set the refresh token in http-only cookie
         response.set_cookie(
             'refresh_token',
-            refresh_token,
+            refresh_token.value,
             httponly=True,
             secure=True,  # Use True in production to enforce HTTPS
             samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
@@ -143,14 +142,13 @@ def register_routes(bp: Blueprint):
         logger.info("Yandex user authenticated successfully")
 
         # Extract access and refresh tokens
-        access_token = authentication.tokens[TokenType.ACCESS.value].value
-        access_expires_in = authentication.tokens[TokenType.ACCESS.value].expires_in
-        refresh_token = authentication.tokens[TokenType.REFRESH.value].value
+        access_token = authentication.tokens[TokenType.ACCESS.value]
+        refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
         # Create JSON response with the access token
         response_body = {
-            "access_token": access_token,
-            "expires_in": access_expires_in
+            "access_token": access_token.value,
+            "expires_in": access_token.expires_in
         }
 
         # Create response object
@@ -159,12 +157,11 @@ def register_routes(bp: Blueprint):
         # Set the refresh token in http-only cookie
         response.set_cookie(
             'refresh_token',
-            refresh_token,
+            refresh_token.value,
             httponly=True,
             secure=True,  # Use True in production to enforce HTTPS
             samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
         )
-
         return response
 
     @bp.route("/auth/yandex/by_code", methods=["GET"])

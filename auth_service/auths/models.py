@@ -198,7 +198,6 @@ class User(Base):
 
         return AuthResponse(tokens=tokens)
 
-
     @classmethod
     def authenticate(cls, auth_request: AuthRequest) -> AuthResponse:
         """
