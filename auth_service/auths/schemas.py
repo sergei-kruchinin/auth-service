@@ -1,24 +1,28 @@
 # auths > schemas.py
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
-import os
-
-EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS'))
+from typing import Dict
 
 
 # Pydantic models
+
+
 class AuthPayload(BaseModel):
     id: int
     login: str
     first_name: str
     last_name: str
     is_admin: bool
-    exp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS))
+    exp: datetime = None  # The value will be set by token generation
+
+
+class TokenData(BaseModel):
+    value: str
+    expires_in: int
 
 
 class AuthResponse(BaseModel):
-    token: str
-    expires_in: int
+    tokens: Dict[str, TokenData]
 
 
 class AuthRequest(BaseModel):

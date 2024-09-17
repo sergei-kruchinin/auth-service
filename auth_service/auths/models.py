@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from auth_service.auths import Base, db_session
 from .schemas import (AuthRequest, AuthPayload, AuthResponse,
-                      OAuthUserCreateSchema,
+                      OAuthUserCreateSchema, TokenData,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from .token_service import TokenService, TokenType
@@ -186,8 +186,18 @@ class User(Base):
             last_name=self.last_name,
             is_admin=self.is_admin
         )
-        auth_response = TokenService.generate_token(payload, TokenType.ACCESS)
-        return auth_response
+        logger.info("Generating access and refresh token")
+        tokens = {}
+
+        for token_type in TokenType:
+            logger.info(f"Generating {token_type} token")
+            token_response = TokenService.generate_token(payload, token_type)
+            logger.info(f"Token")
+            tokens[token_type.value] = TokenData(value=token_response.value, expires_in=token_response.expires_in)
+        logger.info("Access and refresh token generates")
+
+        return AuthResponse(tokens=tokens)
+
 
     @classmethod
     def authenticate(cls, auth_request: AuthRequest) -> AuthResponse:
@@ -195,9 +205,9 @@ class User(Base):
         Authenticate user with login and password.
 
         Args:
-            auth_request (AuthRequest): The login and plaintest password of the user.
+            auth_request (AuthRequest): The login and plaintext password of the user.
         Returns:
-            Dict: The generated token and expiration time.
+            AuthResponse: The generated access and refresh tokens and their expiration times.
         Raises:
             AuthenticationError: If login or password is invalid.
         """

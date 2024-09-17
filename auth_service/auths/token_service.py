@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import redis
 
-from .schemas import AuthPayload, AuthResponse
+from .schemas import AuthPayload, AuthResponse, TokenData
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 from redis import Redis, RedisError
 from enum import Enum
@@ -42,16 +42,15 @@ class TokenService:
     """
 
     @staticmethod
-    def generate_token(payload: AuthPayload, token_type: TokenType) -> AuthResponse:
+    def generate_token(payload: AuthPayload, token_type: TokenType) -> TokenData:
         """
         Generate a JWT token of the specified type and set its expiration time.
 
         Args:
             payload (AuthPayload): The payload data for the token.
             token_type (TokenType): The type of token to generate (TokenType.ACCESS or TokenType.REFRESH).
-
         Returns:
-            AuthResponse: The generated token and expiration time.
+            TokenData: The generated token and expiration time.
         """
         if token_type == TokenType.ACCESS:
             expires_in = ACCESS_EXPIRES_SECONDS
@@ -66,7 +65,7 @@ class TokenService:
 
         encoded_jwt = jwt.encode(jwt_payload, AUTH_SECRET, algorithm='HS256')
         logger.info(f"Generated new {token_type.value} token")
-        return AuthResponse(token=encoded_jwt, expires_in=expires_in)
+        return TokenData(value=encoded_jwt, expires_in=expires_in)
 
     @staticmethod
     def get_token_ttl(token: str) -> int:
