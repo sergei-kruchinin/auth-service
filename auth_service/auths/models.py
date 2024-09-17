@@ -3,11 +3,11 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from auth_service.auths import Base, db_session
-from .schemas import (AuthRequest, AuthPayload,
+from .schemas import (AuthRequest, AuthPayload, AuthResponse,
                       OAuthUserCreateSchema,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
-from .token_service import TokenService
+from .token_service import TokenService, TokenType
 from .password_hash import PasswordHash
 from typing import Dict, List
 import logging
@@ -172,7 +172,7 @@ class User(Base):
 
     # ### 4. Authentication Methods ###
 
-    def __generate_auth_response(self) -> Dict:
+    def __generate_auth_response(self) -> AuthResponse:
         """
         Generate authentication response including JWT token and its expiration time.
 
@@ -186,12 +186,11 @@ class User(Base):
             last_name=self.last_name,
             is_admin=self.is_admin
         )
-        auth_response = TokenService.generate_token(payload)
-        # TODO not dict, but auth_response (?)
-        return auth_response.dict()
+        auth_response = TokenService.generate_token(payload, TokenType.ACCESS)
+        return auth_response
 
     @classmethod
-    def authenticate(cls, auth_request: AuthRequest) -> Dict:
+    def authenticate(cls, auth_request: AuthRequest) -> AuthResponse:
         """
         Authenticate user with login and password.
 
@@ -216,7 +215,7 @@ class User(Base):
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
-    def authenticate_oauth(self) -> Dict:
+    def authenticate_oauth(self) -> AuthResponse:
         """
         Authenticate OAuth user
 

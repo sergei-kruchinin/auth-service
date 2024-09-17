@@ -54,7 +54,7 @@ def register_routes(bp: Blueprint):
             raise AuthenticationError('Invalid login or password') from e
 
         logger.info("User authenticated successfully")
-        return authentication, 200
+        return authentication.dict(), 200
 
     @bp.route("/auth/yandex/callback", methods=["POST", "GET"])
     def auth_yandex_callback():
@@ -117,7 +117,7 @@ def register_routes(bp: Blueprint):
             raise DatabaseError(f"There was an error while syncing the user from yandex") from e
 
         logger.info("Yandex user authenticated successfully")
-        return authentication, 200
+        return authentication.dict(), 200
 
     @bp.route("/auth/yandex/by_code", methods=["GET"])
     def auth_yandex_by_code():

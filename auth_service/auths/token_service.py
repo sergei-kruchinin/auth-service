@@ -9,16 +9,30 @@ import redis
 from .schemas import AuthPayload, AuthResponse
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 from redis import Redis, RedisError
+from enum import Enum
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 # Set 60 to see deleting invalidated token from redis when ttl will be expired
-EXPIRES_SECONDS = int(os.getenv('EXPIRES_SECONDS', 60))
+ACCESS_EXPIRES_SECONDS = int(os.getenv('ACCESS_EXPIRES_SECONDS', 600))  # 10 minutes
+REFRESH_EXPIRES_SECONDS = int(os.getenv('REFRESH_EXPIRES_SECONDS', 1209600))  # 14 days
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
 logger = logging.getLogger(__name__)
 
 r = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+
+
+class TokenType(Enum):
+    """
+    TokenType defines the types of tokens that can be generated.
+
+    Attributes:
+        ACCESS (str): Represents an access token.
+        REFRESH (str): Represents a refresh token.
+    """
+    ACCESS = 'access'
+    REFRESH = 'refresh'
 
 
 class TokenService:
@@ -28,20 +42,31 @@ class TokenService:
     """
 
     @staticmethod
-    def generate_token(payload: AuthPayload) -> AuthResponse:
+    def generate_token(payload: AuthPayload, token_type: TokenType) -> AuthResponse:
         """
-        Generate a JWT token and set its expiration time.
+        Generate a JWT token of the specified type and set its expiration time.
 
         Args:
             payload (AuthPayload): The payload data for the token.
+            token_type (TokenType): The type of token to generate (TokenType.ACCESS or TokenType.REFRESH).
 
         Returns:
             AuthResponse: The generated token and expiration time.
         """
-        payload.exp = datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_SECONDS)
-        encoded_jwt = jwt.encode(payload.dict(), AUTH_SECRET, algorithm='HS256')
-        logger.info("Generated new token")
-        return AuthResponse(token=encoded_jwt, expires_in=EXPIRES_SECONDS)
+        if token_type == TokenType.ACCESS:
+            expires_in = ACCESS_EXPIRES_SECONDS
+        elif token_type == TokenType.REFRESH:
+            expires_in = REFRESH_EXPIRES_SECONDS
+        else:
+            raise ValueError("Invalid token type")
+
+        exp = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+        jwt_payload = payload.dict().copy()
+        jwt_payload.update({"exp": exp.timestamp()})
+
+        encoded_jwt = jwt.encode(jwt_payload, AUTH_SECRET, algorithm='HS256')
+        logger.info(f"Generated new {token_type.value} token")
+        return AuthResponse(token=encoded_jwt, expires_in=expires_in)
 
     @staticmethod
     def get_token_ttl(token: str) -> int:
