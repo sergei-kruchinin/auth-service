@@ -2,9 +2,9 @@
 
 
 import requests
-from flask import request, Blueprint, make_response
+from flask import request, Blueprint, make_response, Response
 from ..models import *
-from ..schemas import AuthRequest, UserCreateInputSchema
+from ..schemas import AuthRequest, AuthResponse, UserCreateInputSchema
 from pydantic import ValidationError
 from ..exceptions import *
 from .dependencies import token_required, get_yandex_uri
@@ -18,10 +18,44 @@ logger = logging.getLogger(__name__)
 
 # ### 1. User Authentication Methods: ###
 
+def create_auth_response(authentication: AuthResponse) -> Response:
+    """
+    Create JSON response with the access token and set the refresh token in http-only cookie.
+
+    Args:
+        authentication (AuthResponse): The authentication response containing tokens.
+
+    Returns:
+        Response: Flask response object with access token in JSON and refresh token in cookie.
+    """
+    # Extract access and refresh tokens
+    access_token = authentication.tokens[TokenType.ACCESS.value]
+    refresh_token = authentication.tokens[TokenType.REFRESH.value]
+
+    # Create JSON response with the access token
+    response_body = {
+        "access_token": access_token.value,
+        "expires_in": access_token.expires_in
+    }
+
+    # Create response object
+    response = make_response(response_body, 200)
+
+    # Set the refresh token in http-only cookie
+    response.set_cookie(
+        'refresh_token',
+        refresh_token.value,
+        httponly=True,
+        secure=True,  # Use True in production to enforce HTTPS
+        samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
+    )
+
+    return response
+
 
 def register_routes(bp: Blueprint):
     @bp.route("/auth", methods=["POST"])
-    def auth():
+    def auth() -> Response:
         """
         Route for authenticating a user.
 
@@ -55,32 +89,10 @@ def register_routes(bp: Blueprint):
 
         logger.info("User authenticated successfully")
 
-        # Extract access and refresh tokens
-        access_token = authentication.tokens[TokenType.ACCESS.value]
-        refresh_token = authentication.tokens[TokenType.REFRESH.value]
-
-        # Create JSON response with the access token
-        response_body = {
-            "access_token": access_token.value,
-            "expires_in": access_token.expires_in
-        }
-
-        # Create response object
-        response = make_response(response_body, 200)
-
-        # Set the refresh token in http-only cookie
-        response.set_cookie(
-            'refresh_token',
-            refresh_token.value,
-            httponly=True,
-            secure=True,  # Use True in production to enforce HTTPS
-            samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
-        )
-
-        return response
+        return create_auth_response(authentication)
 
     @bp.route("/auth/yandex/callback", methods=["POST", "GET"])
-    def auth_yandex_callback():
+    def auth_yandex_callback() -> Response:
         """
         Route for handling Yandex OAuth callback.
 
@@ -141,28 +153,7 @@ def register_routes(bp: Blueprint):
 
         logger.info("Yandex user authenticated successfully")
 
-        # Extract access and refresh tokens
-        access_token = authentication.tokens[TokenType.ACCESS.value]
-        refresh_token = authentication.tokens[TokenType.REFRESH.value]
-
-        # Create JSON response with the access token
-        response_body = {
-            "access_token": access_token.value,
-            "expires_in": access_token.expires_in
-        }
-
-        # Create response object
-        response = make_response(response_body, 200)
-
-        # Set the refresh token in http-only cookie
-        response.set_cookie(
-            'refresh_token',
-            refresh_token.value,
-            httponly=True,
-            secure=True,  # Use True in production to enforce HTTPS
-            samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
-        )
-        return response
+        return create_auth_response(authentication)
 
     @bp.route("/auth/yandex/by_code", methods=["GET"])
     def auth_yandex_by_code():
