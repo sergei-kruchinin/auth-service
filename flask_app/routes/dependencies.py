@@ -50,6 +50,7 @@ def token_required(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
+        device_fingerprint = get_device_fingerprint()
         authorization_header = request.headers.get('authorization')
         prefix = 'Bearer '
         if not authorization_header or not authorization_header.startswith(prefix):
@@ -58,7 +59,7 @@ def token_required(f):
 
         token = authorization_header[len(prefix):]
         try:
-            verification = TokenService.verify_token(token).dict()
+            verification = TokenService.verify_token(token, device_fingerprint).dict()
         except TokenBlacklisted as e:
             logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e

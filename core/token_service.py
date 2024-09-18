@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import redis
 
-from .schemas import AuthPayload, TokenData
+from .schemas import TokenPayload, TokenData
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 from redis import Redis, RedisError
 from enum import Enum
@@ -42,12 +42,12 @@ class TokenService:
     """
 
     @staticmethod
-    def generate_token(payload: AuthPayload, token_type: TokenType) -> TokenData:
+    def generate_token(payload: TokenPayload, token_type: TokenType) -> TokenData:
         """
         Generate a JWT token of the specified type and set its expiration time.
 
         Args:
-            payload (AuthPayload): The payload data for the token.
+            payload (TokenPayload): The payload data for the token.
             token_type (TokenType): The type of token to generate (TokenType.ACCESS or TokenType.REFRESH).
         Returns:
             TokenData: The generated token and expiration time.
@@ -131,29 +131,41 @@ class TokenService:
             logger.error(f"Error checking if token is blacklisted: {str(e)}")
             raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
-    @staticmethod
-    def verify_token(token: str) -> AuthPayload:
+    def verify_token(token: str, device_fingerprint: str) -> TokenPayload:
         """
         Verify a JWT token, ensuring it is not expired or blacklisted.
 
+        This method decodes the JWT token, checks if it is blacklisted, verifies
+        the expiration time, and ensures that the token was issued to the device
+        with the specified fingerprint.
+
         Args:
             token (str): The JWT token to be verified.
+            device_fingerprint (str): The fingerprint of the device attempting to use
+                                      the token. This is used to ensure the token is
+                                      being used on the same device it was issued to.
 
         Returns:
-            AuthPayload: The decoded payload of the token if valid.
+            TokenPayload: The decoded payload of the token if valid, containing user data
+                          and additional claims.
 
         Raises:
             TokenBlacklisted: If the token is blacklisted.
             TokenExpired: If the token has expired.
-            TokenInvalid: If the token is invalid.
+            TokenInvalid: If the token is invalid or if the device fingerprint does not match.
         """
+
         logger.info(f"Verifying token: {token}")
         if TokenService.is_blacklisted(token):
             raise TokenBlacklisted("Token invalidated. Get new one")
         try:
             decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
+            token_payload = TokenPayload(**decoded)
+            if token_payload.device_fingerprint != device_fingerprint:
+                logger.warning("Device fingerprint does not match")
+                raise TokenInvalid("Device fingerprint does not match")
             logger.info("Token successfully verified")
-            return AuthPayload(**decoded)
+            return token_payload
         except jwt.ExpiredSignatureError:
             logger.warning("Token expired")
             raise TokenExpired("Token expired. Get new one")

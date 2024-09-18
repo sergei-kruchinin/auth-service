@@ -7,14 +7,14 @@ from typing import Dict
 # Pydantic models
 
 
-class AuthPayload(BaseModel):
-    id: int
-    login: str
-    first_name: str
-    last_name: str
-    is_admin: bool
-    device_fingerprint: str = None
-    exp: datetime = None  # The value will be set by token generation
+class TokenPayload(BaseModel):
+    id: int = Field(..., description="User id in our database")
+    login: str = Field(..., description="Login of user, incl. composite login <oa:id>")
+    first_name: str = Field(..., description="The first name of user, for system users can be == login")
+    last_name: str = Field(..., description="The first name of user, for system users can be 'system'")
+    is_admin: bool = Field(default=False, description="Boolean indicating if the user is a system superuser.")
+    device_fingerprint: str = Field(default=None, description="Device/browser fingerprint: <useragent:lang>")
+    exp: datetime = Field(default=None, description="The value will be set by token generation")
 
 
 class TokenData(BaseModel):
@@ -41,7 +41,7 @@ class UserBaseSchema(BaseModel):
     login: constr(min_length=3, strip_whitespace=True)
     first_name: str | None = Field(default=None, description="The first name of the user")
     last_name: str = Field(default="system", description="The last name of the user")
-    is_admin: bool = Field(default=False, description="Boolean indicating if the user is an admin.")
+    is_admin: bool = Field(default=False, description="Boolean indicating if the user is a system superuser.")
     source: str = Field(default="manual", description="The source of the user (manual/yandex)")
     oa_id: str | None = Field(default=None, description="The OAuth ID.")
 

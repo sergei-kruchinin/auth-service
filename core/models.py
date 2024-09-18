@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from . import Base, db_session
-from .schemas import (AuthRequest, AuthPayload, AuthResponse,
+from .schemas import (AuthRequest, TokenPayload, AuthResponse,
                       OAuthUserCreateSchema, TokenData,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
@@ -179,7 +179,7 @@ class User(Base):
         Returns:
             Dict: The generated token and expiration time.
         """
-        payload = AuthPayload(
+        payload = TokenPayload(
             id=self.id,
             login=self.login,
             first_name=self.first_name,
