@@ -172,7 +172,7 @@ class User(Base):
 
     # ### 4. Authentication Methods ###
 
-    def __generate_auth_response(self) -> AuthResponse:
+    def __generate_auth_response(self, device_fingerprint: str) -> AuthResponse:
         """
         Generate authentication response including JWT token and its expiration time.
 
@@ -184,7 +184,8 @@ class User(Base):
             login=self.login,
             first_name=self.first_name,
             last_name=self.last_name,
-            is_admin=self.is_admin
+            is_admin=self.is_admin,
+            device_fingerprint=device_fingerprint
         )
         logger.info("Generating access and refresh token")
         tokens = {}
@@ -218,13 +219,13 @@ class User(Base):
                 logger.warning(f"Authentication failed for user: {auth_request.login}")
                 raise AuthenticationError('Invalid login or invalid password')
             logger.info(f"User authenticated successfully: {user.login}")
-            return user.__generate_auth_response()
+            return user.__generate_auth_response(auth_request.device_fingerprint)
 
         except SQLAlchemyError as e:
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
-    def authenticate_oauth(self) -> AuthResponse:
+    def authenticate_oauth(self, device_fingerprint: str) -> AuthResponse:
         """
         Authenticate OAuth user
 
@@ -233,7 +234,7 @@ class User(Base):
 
         """
         logger.debug(f"Authenticating OAuth user: {self.login}")
-        return self.__generate_auth_response()
+        return self.__generate_auth_response(device_fingerprint)
 
     # ### 5. Object Representation Methods ###
 

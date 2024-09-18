@@ -13,6 +13,7 @@ class AuthPayload(BaseModel):
     first_name: str
     last_name: str
     is_admin: bool
+    device_fingerprint: str = None
     exp: datetime = None  # The value will be set by token generation
 
 
@@ -32,6 +33,8 @@ class AuthRequest(BaseModel):
     password: constr(min_length=8, strip_whitespace=True) = Field(
         ..., description="The plaintext password of the user"
     )
+    device_fingerprint: str = Field(
+        ..., description="The fingerprint of the user's device")
 
 
 class UserBaseSchema(BaseModel):

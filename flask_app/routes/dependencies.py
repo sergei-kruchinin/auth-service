@@ -9,6 +9,26 @@ import os
 logger = logging.getLogger(__name__)
 
 
+def get_device_fingerprint() -> str:
+    """Generates a device fingerprint based on the User-Agent and Accept-Language headers.
+
+    This function extracts the User-Agent and Accept-Language headers from
+    the incoming HTTP request and combines them to create a unique fingerprint
+    for the device. If the User-Agent header is missing, a warning is logged.
+
+    Returns:
+        str: A string representing the device fingerprint, composed of
+        the User-Agent and Accept-Language headers separated by a colon.
+    """
+    user_agent = request.headers.get('User-Agent')
+    if not user_agent:
+        logger.warning("User-Agent header is missing")
+        user_agent = "unknown"
+
+    accept_language = request.headers.get('Accept-Language', 'unknown')
+    return f"{user_agent}:{accept_language}"
+
+
 def token_required(f):
     """
     Decorator to verify the presence and validity of a Bearer token in the request headers.
@@ -58,3 +78,4 @@ def get_yandex_uri():
     yandex_id = os.getenv('YANDEX_ID')
     iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
     return iframe_uri
+

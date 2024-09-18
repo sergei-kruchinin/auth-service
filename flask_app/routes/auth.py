@@ -7,7 +7,7 @@ from core.models import *
 from core.schemas import AuthRequest, AuthResponse, UserCreateInputSchema
 from pydantic import ValidationError
 from core.exceptions import *
-from .dependencies import token_required, get_yandex_uri
+from .dependencies import token_required, get_yandex_uri, get_device_fingerprint
 
 from core.yandex_oauth import YandexOAuthService
 import logging
@@ -71,19 +71,19 @@ def register_routes(bp: Blueprint):
         401: For invalid login/password
         """
         logger.info("Auth route called")
-        # get the user_id and secret from the client application
-        json_data = request.get_json()
-        if not json_data:
-            raise NoDataProvided('No input data provided')
+
+
         try:
+            json_data = request.get_json()
+            if not json_data:
+                raise NoDataProvided('No input data provided')
+            device_fingerprint = get_device_fingerprint()
+            json_data["device_fingerprint"] = device_fingerprint
             auth_request = AuthRequest(**json_data)
+            authentication = User.authenticate(auth_request)
+
         except ValidationError as e:
             raise InsufficientData('login or password not specified') from e
-
-        # If authentication fails, this will raise an AuthenticationError
-        # which will be caught by the error handler and a proper JSON response will be forme
-        try:
-            authentication = User.authenticate(auth_request)
         except AuthenticationError as e:
             raise AuthenticationError('Invalid login or password') from e
 
@@ -107,7 +107,7 @@ def register_routes(bp: Blueprint):
         503: If there's an OAuth or user data retrieval error
         """
         logger.info("Received Yandex OAuth callback request")
-
+        device_fingerprint = get_device_fingerprint()
         if request.method == 'POST':
             # In POST requests, we always receive the token.
             access_token = request.json.get('token')
@@ -144,9 +144,7 @@ def register_routes(bp: Blueprint):
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
             user = User.create_or_update_oauth_user(oauth_user_data)
-
-            authentication = user.authenticate_oauth()
-
+            authentication = user.authenticate_oauth(device_fingerprint)
         except DatabaseError as e:
             logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
             raise DatabaseError(f"There was an error while syncing the user from yandex") from e
