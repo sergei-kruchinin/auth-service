@@ -1,8 +1,8 @@
-# auths > models.py
+# core > models.py
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
-from auth_service.auths import Base, db_session
+from . import Base, db_session
 from .schemas import (AuthRequest, AuthPayload, AuthResponse,
                       OAuthUserCreateSchema, TokenData,
                       UserCreateInputSchema, UserResponseSchema)

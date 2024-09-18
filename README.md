@@ -47,7 +47,6 @@ Auth Service is a robust and modular authentication and authorization system bui
     ```sh
     python3 -m venv .venv
     source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
-    cd auth_service
     ```
    
 3. Install Redis 
@@ -61,13 +60,14 @@ Auth Service is a robust and modular authentication and authorization system bui
     ```
    
 5.Configure your environment variables in a `.env` file:
-    ```plaintext
-    AUTH_SECRET=YOUR_SECRET_KEY
-    EXPIRES_SECONDS=86400
-    API_DOMAIN=your_domain
-    YANDEX_ID=YOUR_YANDEX_CLIENT_ID
-    YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
-    ```
+```plaintext
+AUTH_SECRET=YOUR_SECRET_KEY
+ACCESS_EXPIRES_SECONDS=600
+REFRESH_EXPIRES_SECONDS=1209600
+API_DOMAIN=your_domain
+YANDEX_ID=YOUR_YANDEX_CLIENT_ID
+YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
+```
 
 ### Running the Application
 
@@ -78,34 +78,40 @@ Auth Service is a robust and modular authentication and authorization system bui
 
 2. Start the Flask application:
     ```sh
-    python3 app.run
+    export PYTHONPATH=.
+    python3 flask_app/app.py
     ```
 
 ## Project Structure
 
 ```plaintext
-auth_service/
-├─── auths/
+flask_auth_service/
+├── core/
 │   ├── __init__.py
-│   ├── routes/
-│   │  ├──  __init__.py  
-│   │  ├── auth.py
-│   │  ├── front_emu.py
-│   │  └── dependencies.py
-│   ├── templates/
-│   │  ├── auth_yandex.html
-│   │  └── yandex_callback.html
-│   ├── yandex_oauth.py
-│   ├── token_service.py
-│   ├── schemas.py
 │   ├── models.py
+│   ├── token_service.py
 │   ├── password_hash.py
-│   ├── logger_config.py
 │   ├── exceptions.py
-│   └── error_handlers.py
-├── app.py
+│   ├── yandex_oauth.py
+│   └── schemas.py
+├── flask_app/
+│   ├── app.py
+│   ├── error_handlers.py
+│   └── routes/
+│       ├── __init__.py
+│       ├── auth.py
+│       ├── dependencies.py
+│       └── front_emu.py
+├── templates/
+│   ├── auth_yandex.html
+│   └── yandex_callback.html
+├── config/
+│   └── logger_config.py
 ├── create_db_once.py
-└── requirements.txt
+├── requirements.txt
+├── .env
+├── LICENSE
+└── README.md
 ```
 
 ## Configuration
@@ -113,7 +119,8 @@ auth_service/
 Environment variables are used to configure the service. Key variables include:
 
 - `AUTH_SECRET`: Secret key used for JWT encoding and decoding.
-- `EXPIRES_SECONDS`: Expiration time for JWT tokens in seconds. 
+- `ACCESS_EXPIRES_SECONDS`: Expiration time for JWT access tokens in seconds. 
+- `REFRESH_EXPIRES_SECONDS`: Expiration time for JWT refresh tokens in seconds. 
 - `API_DOMAIN`: Domain of your web app.
 - `YANDEX_ID`: Yandex OAuth client ID.
 - `YANDEX_SECRET`: Yandex OAuth client secret.
@@ -195,8 +202,8 @@ Errors are handled consistently across the service. Custom exceptions are define
 
 ## Other Notices
 
-Now blacklist of revoked tokens will be stored in redis.  
-
+Blacklist of revoked tokens stored in redis.  
+Refresh tokens still in development.
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.

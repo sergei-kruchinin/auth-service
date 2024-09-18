@@ -1,15 +1,15 @@
-# auths > routes > auth.py
+# core > routes > auth.py
 
 
 import requests
 from flask import request, Blueprint, make_response, Response
-from ..models import *
-from ..schemas import AuthRequest, AuthResponse, UserCreateInputSchema
+from core.models import *
+from core.schemas import AuthRequest, AuthResponse, UserCreateInputSchema
 from pydantic import ValidationError
-from ..exceptions import *
+from core.exceptions import *
 from .dependencies import token_required, get_yandex_uri
 
-from ..yandex_oauth import YandexOAuthService
+from core.yandex_oauth import YandexOAuthService
 import logging
 
 

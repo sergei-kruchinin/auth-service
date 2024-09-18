@@ -1,3 +1,10 @@
+.env
 .venv
 .idea
+.misc
 __pycache__
+users.db
+*.py[cod]
+*.log
+
+

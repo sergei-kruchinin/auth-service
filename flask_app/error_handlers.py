@@ -1,6 +1,6 @@
-# auths > error_handlers.py
+# core > error_handlers.py
 
-from .exceptions import *
+from core.exceptions import *
 from requests.exceptions import SSLError, ConnectionError
 from pydantic import ValidationError
 import logging

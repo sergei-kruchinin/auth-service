@@ -1,8 +1,9 @@
 # create_db_once.py
 
-from auths import create_app, init_db, db_session, engine
-from auths.models import User, Base
-from auths.schemas import UserCreateInputSchema
+from flask_app import create_app
+from core import init_db, db_session, engine
+from core.models import User, Base
+from core.schemas import UserCreateInputSchema
 
 app = create_app()
 

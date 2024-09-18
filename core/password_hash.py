@@ -1,4 +1,4 @@
-# auths > password_hash.py
+# core > password_hash.py
 
 from passlib.context import CryptContext
 import logging

@@ -1,4 +1,4 @@
-# auths > exceptions.py
+# core > exceptions.py
 
 # Models Exception Classes
 class AuthenticationError(Exception):

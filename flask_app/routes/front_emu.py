@@ -1,6 +1,6 @@
-# auths > routes > front_emu.py
+# core > routes > front_emu.py
 
-from ..models import *
+from core.models import *
 # from .yandex_html import *
 from .dependencies import get_yandex_uri
 from flask import render_template, Blueprint

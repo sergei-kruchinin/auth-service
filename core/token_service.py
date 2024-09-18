@@ -1,4 +1,4 @@
-# auths > token_service.py
+# core > token_service.py
 
 import jwt
 import os
@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import redis
 
-from .schemas import AuthPayload, AuthResponse, TokenData
+from .schemas import AuthPayload, TokenData
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 from redis import Redis, RedisError
 from enum import Enum

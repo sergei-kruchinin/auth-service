@@ -1,10 +1,10 @@
-# auths > routes > dependencies.py
+# core > routes > dependencies.py
 
 from functools import wraps
 from flask import request
 import logging
-from ..token_service import TokenService
-from ..exceptions import *
+from core.token_service import TokenService
+from core.exceptions import *
 import os
 logger = logging.getLogger(__name__)
 

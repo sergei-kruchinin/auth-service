@@ -1,4 +1,4 @@
-# auths > yandex_oauth.py
+# core > yandex_oauth.py
 
 import base64
 import requests

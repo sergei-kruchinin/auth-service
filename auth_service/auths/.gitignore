@@ -1,6 +1,0 @@
-.venv
-.idea
-__pycache__
-users.db
-examples.py
-unused.py

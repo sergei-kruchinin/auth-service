@@ -1,6 +1,6 @@
 # app.py
 
-from auths import create_app
+from flask_app import create_app
 app = create_app()
 
 if __name__ == '__main__':
