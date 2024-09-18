@@ -33,6 +33,15 @@ class User(Base):
         onupdate=func.now()
     )
 
+    def __init__(self, user_data: OAuthUserCreateSchema | UserCreateInputSchema):
+        self.login = user_data.login
+        self.first_name = user_data.first_name
+        self.last_name = user_data.last_name
+        self.secret = PasswordHash.generate_or_none(user_data.password)
+        self.is_admin = bool(user_data.is_admin)
+        self.source = user_data.source
+        self.oa_id = user_data.oa_id
+
     # ### 2. User Management Methods ###
 
     @classmethod
@@ -72,18 +81,8 @@ class User(Base):
             UserAlreadyExistsError: If user with the login already exists.
           """
         logger.debug("Creating new user")
-        hashed_password = PasswordHash.generate_or_none(user_data.password)
-        is_admin = bool(user_data.is_admin)
         try:
-            new_user = cls(
-                login=user_data.login,
-                first_name=user_data.first_name,
-                last_name=user_data.last_name,
-                secret=hashed_password,
-                is_admin=is_admin,
-                source=user_data.source,
-                oa_id=user_data.oa_id
-            )
+            new_user = cls(user_data)
             db_session.add(new_user)
             db_session.commit()
 

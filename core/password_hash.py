@@ -21,7 +21,7 @@ class PasswordHash:
         Returns:
             str: The hashed password.
         """
-        logger.info("Generating password hash")
+        logger.info(f"Generating password hash {password}")
         return cls.pwd_context.hash(password)
 
     @classmethod
@@ -50,6 +50,7 @@ class PasswordHash:
         Returns:
             str or None: The hashed password or None.
         """
+        logger.info("Generating a password hash or return None if the password is None")
         if password is None:
             return None
         try:

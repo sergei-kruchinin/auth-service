@@ -72,7 +72,6 @@ def register_routes(bp: Blueprint):
         """
         logger.info("Auth route called")
 
-
         try:
             json_data = request.get_json()
             if not json_data:
