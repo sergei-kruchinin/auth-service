@@ -1,4 +1,4 @@
-# core > logging.conf
+# config > logging_config.conf
 
 import logging
 

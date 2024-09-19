@@ -1,4 +1,4 @@
-# core > routes > __init__.py
+# flask_app > routes > __init__.py
 
 from flask import Blueprint
 from .auth import register_routes as register_auth_routes

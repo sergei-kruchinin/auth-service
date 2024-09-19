@@ -1,4 +1,4 @@
-# core > routes > dependencies.py
+# flask_app > routes > dependencies.py
 
 from functools import wraps
 from flask import request

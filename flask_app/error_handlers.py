@@ -1,4 +1,4 @@
-# core > error_handlers.py
+# flask_app > error_handlers.py
 
 from core.exceptions import *
 from requests.exceptions import SSLError, ConnectionError

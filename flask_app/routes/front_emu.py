@@ -1,4 +1,4 @@
-# core > routes > front_emu.py
+# flask_app > routes > front_emu.py
 
 from core.models import *
 # from .yandex_html import *

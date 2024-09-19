@@ -1,5 +1,4 @@
-# core > routes > auth.py
-
+# flask_app > routes > auth.py
 
 import requests
 from flask import request, Blueprint, make_response, Response
