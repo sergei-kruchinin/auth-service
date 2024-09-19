@@ -21,9 +21,10 @@ def register_routes(bp: Blueprint):
         Default route that fetches and displays the README.md file as HTML.
 
         This function performs the following steps:
-        1. Fetches the raw content of the README.md file from the given URL.
-        2. Converts the Markdown content to HTML.
-        3. Renders an HTML template to display the converted content.
+        1. Attempts to read the local README.md file from the project root.
+        2. If the local file is not found, it fetches the raw content of the README.md file from the given URL.
+        3. Converts the Markdown content to HTML.
+        4. Renders an HTML template to display the converted content.
 
         Returns:
             Response: The rendered HTML containing the contents of the README.md file.
@@ -34,16 +35,70 @@ def register_routes(bp: Blueprint):
         """
 
         logger.info("Root route called")
-        url = "https://raw.githubusercontent.com/sergei-kruchinin/flask-auth-service/main/README.md"
-        response = requests.get(url)
-        logger.info("Fetching README.md")
-        if response.status_code != 200:
-            logger.warning(f"Failed to fetch the README.md file. Response status code:{response.status_code}")
-            return "Failed to fetch the README.md file", response.status_code
-        md_content = response.text
-        html_content = markdown.markdown(md_content)
-        return render_template("readme_md.html", html_content=html_content)
+        md_content = ""
+        readme_local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "README.md")
 
+        # Attempt to read the local README.md file
+        try:
+            logger.info(f"Trying to read the local file at {readme_local_path}")
+            with open(readme_local_path, "r", encoding="utf-8") as file:
+                md_content = file.read()
+                logger.info("Successfully read the local README.md file")
+        except FileNotFoundError:
+            logger.warning(f"Local README.md file not found at {readme_local_path}, trying to fetch from the URL")
+            url = "https://raw.githubusercontent.com/sergei-kruchinin/flask-auth-service/main/README.md"
+            response = requests.get(url)
+
+            if response.status_code != 200:
+                logger.warning(
+                    f"Failed to fetch the README.md file from URL. Response status code: {response.status_code}")
+                return "Failed to fetch the README.md file", response.status_code
+
+            md_content = response.text
+
+        logger.info("Converting Markdown to HTML")
+        html_content = markdown.markdown(md_content)
+
+        logger.info("Rendering template")
+        try:
+            return render_template("readme_md.html", html_content=html_content)
+        except Exception as e:
+            logger.error(f"Unexpected Error rendering template: {str(e)}")
+            return str(e), 500
+
+    @bp.route("/LICENSE", methods=["GET"])
+    def display_license():
+        """
+        Route that fetches and displays the LICENSE file as plain text.
+
+        This function performs the following steps:
+        1. Attempts to read the local LICENSE file from the project root.
+        2. Renders a plain text template to display the content.
+
+        Returns:
+            Response: The rendered plain text containing the contents of the LICENSE file.
+
+        Raises:
+            HTTPException: If there is an error fetching the LICENSE file,
+                           returns an appropriate HTTP error response.
+        """
+
+        logger.info("License route called")
+        license_content = ""
+        license_local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "LICENSE")
+
+        # Attempt to read the local LICENSE file
+        try:
+            logger.info(f"Trying to read the local file at {license_local_path}")
+            with open(license_local_path, "r", encoding="utf-8") as file:
+                license_content = file.read()
+                logger.info("Successfully read the local LICENSE file")
+        except FileNotFoundError:
+            logger.warning(f"Local LICENSE file not found at {license_local_path}")
+            return "LICENSE file not found", 404
+
+        # Render the content as plain text
+        return render_template("plain_text.html", content=license_content)
 
     # ### 5. Frontend Imitation Methods for testing Yandex OAuth 2.0 ###
 
