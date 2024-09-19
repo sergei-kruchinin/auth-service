@@ -69,7 +69,7 @@ def token_required(f):
         function: The wrapped function with token and verification parameters added.
     """
     @wraps(f)
-    def decorated(db, *args, **kwargs):
+    def decorated(*args, **kwargs):
         device_fingerprint = get_device_fingerprint()
         authorization_header = request.headers.get('authorization')
         prefix = 'Bearer '
@@ -90,9 +90,9 @@ def token_required(f):
             logger.error(f"Invalid token: {str(e)}")
             raise TokenInvalid("Invalid token") from e
 
-        return f(db, verification, *args, **kwargs)
+        return f(verification, *args, **kwargs)
 
-    return with_db(decorated)
+    return decorated
 
 
 def get_yandex_uri():

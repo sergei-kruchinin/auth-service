@@ -169,7 +169,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/verify", methods=["POST"])
     @token_required
-    def verify(_db, verification: TokenVerification) -> Response:
+    def verify(verification: TokenVerification) -> Response:
         """
         Route for verifying an authentication token.
 
@@ -188,7 +188,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/logout", methods=["POST"])
     @token_required
-    def logout(_db, verification: TokenVerification) -> Response:
+    def logout(verification: TokenVerification) -> Response:
         """
         Route for logging out a user and invalidating the token.
 
@@ -224,8 +224,9 @@ def register_routes(bp: Blueprint):
     # ### 3. User Management Methods: ###
 
     @bp.route("/users", methods=["POST"])
+    @with_db
     @token_required
-    def users_create(db: Session,  verification: TokenVerification) -> Response:
+    def users_create(verification: TokenVerification, db: Session) -> Response:
         """
         Route for creating a new user (admin only).
 
@@ -282,8 +283,9 @@ def register_routes(bp: Blueprint):
         return response
 
     @bp.route("/users", methods=["GET"])
+    @with_db
     @token_required
-    def users_list(db: Session, verification: TokenVerification) -> Response:
+    def users_list(verification: TokenVerification, db: Session) -> Response:
         """
         Route for retrieving the list of users (admin only).
 
