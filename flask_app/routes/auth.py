@@ -1,6 +1,6 @@
 # flask_app > routes > auth.py
 from core.models import *
-from core.schemas import AuthRequest, AuthResponse, UserCreateInputSchema, TokenVerification
+from core.schemas import AuthRequest, AuthTokens, UserCreateInputSchema, TokenVerification
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *
@@ -15,28 +15,23 @@ logger = logging.getLogger(__name__)
 
 # ### 1. User Authentication Methods: ###
 
-def create_auth_response(authentication: AuthResponse) -> Response:
+def create_auth_response(authentication: AuthTokens) -> Response:
     """
     Create JSON response with the access token and set the refresh token in http-only cookie.
 
     Args:
-        authentication (AuthResponse): The authentication response containing tokens.
+        authentication (AuthTokens): The authentication response containing tokens.
 
     Returns:
         Response: Flask response object with access token in JSON and refresh token in cookie.
     """
-    # Extract access and refresh tokens
+    logger.info("Creating auth response")
+
     access_token = authentication.tokens[TokenType.ACCESS.value]
     refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
-    # Create JSON response with the access token
-    response_body = {
-        "access_token": access_token.value,
-        "expires_in": access_token.expires_in
-    }
-
-    # Create response object
-    response = make_response(response_body, 200)
+    # Create response object with access token
+    response = make_response(access_token.dict(), 200)
 
     # Set the refresh token in http-only cookie
     response.set_cookie(
@@ -46,7 +41,7 @@ def create_auth_response(authentication: AuthResponse) -> Response:
         secure=True,  # Use True in production to enforce HTTPS
         samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
     )
-
+    logger.info("Auth response created")
     return response
 
 

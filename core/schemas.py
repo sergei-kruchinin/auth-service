@@ -30,7 +30,7 @@ class TokenVerification(TokenPayload, TokenValue):
     pass
 
 
-class AuthResponse(BaseModel):
+class AuthTokens(BaseModel):
     tokens: Dict[str, TokenData]
 
 

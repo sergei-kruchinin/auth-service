@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from . import Base
-from .schemas import (AuthRequest, TokenPayload, AuthResponse,
+from .schemas import (AuthRequest, TokenPayload, AuthTokens,
                       OAuthUserCreateSchema, TokenData,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
@@ -173,7 +173,7 @@ class User(Base):
 
     # ### 4. Authentication Methods ###
 
-    def __generate_auth_response(self, device_fingerprint: str) -> AuthResponse:
+    def __generate_auth_response(self, device_fingerprint: str) -> AuthTokens:
         """
         Generate authentication response including JWT token and its expiration time.
 
@@ -198,10 +198,10 @@ class User(Base):
             tokens[token_type.value] = TokenData(value=token_response.value, expires_in=token_response.expires_in)
         logger.info("Access and refresh token generates")
 
-        return AuthResponse(tokens=tokens)
+        return AuthTokens(tokens=tokens)
 
     @classmethod
-    def authenticate(cls, db: Session, auth_request: AuthRequest) -> AuthResponse:
+    def authenticate(cls, db: Session, auth_request: AuthRequest) -> AuthTokens:
         """
         Authenticate user with login and password.
 
@@ -209,7 +209,7 @@ class User(Base):
             auth_request (AuthRequest): The login and plaintext password of the user.
             db (Session): Session
         Returns:
-            AuthResponse: The generated access and refresh tokens and their expiration times.
+            AuthTokens: The generated access and refresh tokens and their expiration times.
         Raises:
             AuthenticationError: If login or password is invalid.
         """
@@ -228,7 +228,7 @@ class User(Base):
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
-    def authenticate_oauth(self, device_fingerprint: str) -> AuthResponse:
+    def authenticate_oauth(self, device_fingerprint: str) -> AuthTokens:
         """
         Authenticate OAuth user
 
