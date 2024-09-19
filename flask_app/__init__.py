@@ -14,7 +14,7 @@ load_dotenv()
 def create_app():
     setup_logging()
 
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='../templates')
     app = register_error_handlers(app)
 
     from flask_app.routes import register_all_routes, main_bp

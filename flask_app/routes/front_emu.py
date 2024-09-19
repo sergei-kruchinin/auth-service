@@ -1,10 +1,10 @@
 # flask_app > routes > front_emu.py
 
 from core.models import *
-# from .yandex_html import *
 from .dependencies import get_yandex_uri
 from flask import render_template, Blueprint
-
+import requests
+import markdown
 import os
 import logging
 
@@ -16,17 +16,34 @@ def register_routes(bp: Blueprint):
     # ### 4. Root Route Method: ###
 
     @bp.route("/", methods=["GET"])
-    def site_root():
+    def display_readme():
         """
-        Root route for the application (Temporary/Dummy)
+        Default route that fetches and displays the README.md file as HTML.
 
-        Method: GET
+        This function performs the following steps:
+        1. Fetches the raw content of the README.md file from the given URL.
+        2. Converts the Markdown content to HTML.
+        3. Renders an HTML template to display the converted content.
 
         Returns:
-        200: HTML page with "hello world".
+            Response: The rendered HTML containing the contents of the README.md file.
+
+        Raises:
+            HTTPException: If there is an error fetching the README.md file,
+                           returns an appropriate HTTP error response.
         """
+
         logger.info("Root route called")
-        return '<html><body>Hello world</body></html>'
+        url = "https://raw.githubusercontent.com/sergei-kruchinin/flask-auth-service/main/README.md"
+        response = requests.get(url)
+        logger.info("Fetching README.md")
+        if response.status_code != 200:
+            logger.warning(f"Failed to fetch the README.md file. Response status code:{response.status_code}")
+            return "Failed to fetch the README.md file", response.status_code
+        md_content = response.text
+        html_content = markdown.markdown(md_content)
+        return render_template("readme_md.html", html_content=html_content)
+
 
     # ### 5. Frontend Imitation Methods for testing Yandex OAuth 2.0 ###
 

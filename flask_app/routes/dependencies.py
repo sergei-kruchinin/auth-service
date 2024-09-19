@@ -45,7 +45,7 @@ def with_db(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         with get_db_session() as db:
-            return f(db, *args, **kwargs)
+            return f(*args, **kwargs, db=db)
     return decorated
 
 
@@ -90,7 +90,7 @@ def token_required(f):
             logger.error(f"Invalid token: {str(e)}")
             raise TokenInvalid("Invalid token") from e
 
-        return f(verification, *args, **kwargs)
+        return f(verification=verification, *args, **kwargs)
 
     return decorated
 

@@ -224,8 +224,8 @@ def register_routes(bp: Blueprint):
     # ### 3. User Management Methods: ###
 
     @bp.route("/users", methods=["POST"])
-    @with_db
     @token_required
+    @with_db
     def users_create(verification: TokenVerification, db: Session) -> Response:
         """
         Route for creating a new user (admin only).
@@ -283,8 +283,8 @@ def register_routes(bp: Blueprint):
         return response
 
     @bp.route("/users", methods=["GET"])
-    @with_db
     @token_required
+    @with_db
     def users_list(verification: TokenVerification, db: Session) -> Response:
         """
         Route for retrieving the list of users (admin only).
