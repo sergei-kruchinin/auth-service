@@ -12,5 +12,13 @@ engine = create_engine('sqlite:///' + os.path.join(basedir, 'users.db'))
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 
+def get_db():
+    db = db_session()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)

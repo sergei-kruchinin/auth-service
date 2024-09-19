@@ -1,13 +1,12 @@
 # flask_app > routes > auth.py
 
 import requests
-from flask import request, Blueprint, make_response, Response
+from flask import Blueprint, make_response, Response
 from core.models import *
 from core.schemas import AuthRequest, AuthResponse, UserCreateInputSchema
 from pydantic import ValidationError
 from core.exceptions import *
-from .dependencies import token_required, get_yandex_uri, get_device_fingerprint
-
+from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 import logging
 
@@ -54,7 +53,8 @@ def create_auth_response(authentication: AuthResponse) -> Response:
 
 def register_routes(bp: Blueprint):
     @bp.route("/auth", methods=["POST"])
-    def auth() -> Response:
+    @with_db
+    def auth(db) -> Response:
         """
         Route for authenticating a user.
 
@@ -70,7 +70,6 @@ def register_routes(bp: Blueprint):
         401: For invalid login/password
         """
         logger.info("Auth route called")
-
         try:
             json_data = request.get_json()
             if not json_data:
@@ -78,7 +77,7 @@ def register_routes(bp: Blueprint):
             device_fingerprint = get_device_fingerprint()
             json_data["device_fingerprint"] = device_fingerprint
             auth_request = AuthRequest(**json_data)
-            authentication = User.authenticate(auth_request)
+            authentication = User.authenticate(db, auth_request)
 
         except ValidationError as e:
             raise InsufficientData('login or password not specified') from e
@@ -90,7 +89,8 @@ def register_routes(bp: Blueprint):
         return create_auth_response(authentication)
 
     @bp.route("/auth/yandex/callback", methods=["POST", "GET"])
-    def auth_yandex_callback() -> Response:
+    @with_db
+    def auth_yandex_callback(db) -> Response:
         """
         Route for handling Yandex OAuth callback.
 
@@ -141,7 +141,7 @@ def register_routes(bp: Blueprint):
         # add to our database (or update)
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
-            user = User.create_or_update_oauth_user(oauth_user_data)
+            user = User.create_or_update_oauth_user(db, oauth_user_data)
             authentication = user.authenticate_oauth(device_fingerprint)
         except DatabaseError as e:
             logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
@@ -169,7 +169,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/verify", methods=["POST"])
     @token_required
-    def verify(_, verification):
+    def verify(db, _, verification):
         """
         Route for verifying an authentication token.
 
@@ -187,7 +187,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/logout", methods=["POST"])
     @token_required
-    def logout(token, _):
+    def logout(db, token, _):
         """
         Route for logging out a user and invalidating the token.
 
@@ -222,7 +222,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/users", methods=["POST"])
     @token_required
-    def users_create(_, verification):
+    def users_create(db, _, verification):
         """
         Route for creating a new user (admin only).
 
@@ -266,7 +266,7 @@ def register_routes(bp: Blueprint):
             raise InsufficientData(f"Invalid login format") from e
 
         try:
-            User.create_with_check(user_data)
+            User.create_with_check(db, user_data)
         except UserAlreadyExistsError as e:
             logger.warning(f"User with login already exists: {str(e)}")
             raise
@@ -279,7 +279,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/users", methods=["GET"])
     @token_required
-    def users_list(_, verification):
+    def users_list(db, _, verification):
         """
         Route for retrieving the list of users (admin only).
 
@@ -298,7 +298,7 @@ def register_routes(bp: Blueprint):
             logger.warning("is_admin is False")
             raise AdminRequiredError('Access Denied')
         try:
-            users_list_json = User.list()
+            users_list_json = User.list(db)
             logger.info("Users list retrieved successfully")
             return users_list_json
 

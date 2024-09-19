@@ -6,6 +6,9 @@ import logging
 from core.token_service import TokenService
 from core.exceptions import *
 import os
+from core import get_db
+from contextlib import contextmanager
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +32,23 @@ def get_device_fingerprint() -> str:
     return f"{user_agent}:{accept_language}"
 
 
+@contextmanager
+def get_db_session():
+    db = next(get_db())
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def with_db(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        with get_db_session() as db:
+            return f(db, *args, **kwargs)
+    return decorated
+
+
 def token_required(f):
     """
     Decorator to verify the presence and validity of a Bearer token in the request headers.
@@ -49,7 +69,7 @@ def token_required(f):
         function: The wrapped function with token and verification parameters added.
     """
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorated(db, *args, **kwargs):
         device_fingerprint = get_device_fingerprint()
         authorization_header = request.headers.get('authorization')
         prefix = 'Bearer '
@@ -70,13 +90,12 @@ def token_required(f):
             logger.error(f"Invalid token: {str(e)}")
             raise TokenInvalid("Invalid token") from e
 
-        return f(token, verification, *args, **kwargs)
+        return f(db, token, verification, *args, **kwargs)
 
-    return decorated
+    return with_db(decorated)
 
 
 def get_yandex_uri():
     yandex_id = os.getenv('YANDEX_ID')
     iframe_uri = f'https://oauth.yandex.ru/authorize?response_type=code&client_id={yandex_id}'
     return iframe_uri
-

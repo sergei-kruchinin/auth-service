@@ -21,6 +21,6 @@ with app.app_context():
         source='manual',
         oa_id=None
     )
-    User.create_with_check(user_data)
+    User.create_with_check(db_session, user_data)
 
     print(db_session.query(User).all())
