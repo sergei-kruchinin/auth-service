@@ -116,14 +116,13 @@ class User(Base):
         """
         # TODO further: class constructor instead of method (?)
         logger.debug("Creating new user with check")
-        try:
-            if db.query(cls).filter_by(login=user_data.login).first():
-                logger.warning(f"User with login {user_data.login} already exists")
-                raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
 
+        if db.query(cls).filter_by(login=user_data.login).first():
+            logger.warning(f"User with login {user_data.login} already exists")
+            raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
+        try:
             user = cls.__create(db, user_data)
             return user
-
         except SQLAlchemyError as e:
             logger.error(f"There was an error while creating user: {str(e)}")
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e

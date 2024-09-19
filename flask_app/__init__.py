@@ -12,7 +12,7 @@ load_dotenv()
 
 
 def create_app():
-    setup_logging()  # Инициализация логирования
+    setup_logging()
 
     app = Flask(__name__)
     app = register_error_handlers(app)

@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import redis
 
-from .schemas import TokenPayload, TokenData
+from .schemas import TokenPayload, TokenData, TokenVerification
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 from redis import Redis, RedisError
 from enum import Enum
@@ -131,7 +131,8 @@ class TokenService:
             logger.error(f"Error checking if token is blacklisted: {str(e)}")
             raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
-    def verify_token(token: str, device_fingerprint: str) -> TokenPayload:
+    @staticmethod
+    def verify_token(token: str, device_fingerprint: str) -> TokenVerification:
         """
         Verify a JWT token, ensuring it is not expired or blacklisted.
 
@@ -146,8 +147,8 @@ class TokenService:
                                       being used on the same device it was issued to.
 
         Returns:
-            TokenPayload: The decoded payload of the token if valid, containing user data
-                          and additional claims.
+            TokenVerification: The token and expiration with decoded payload of the token if valid, containing user data
+                               and additional claims.
 
         Raises:
             TokenBlacklisted: If the token is blacklisted.
@@ -165,7 +166,8 @@ class TokenService:
                 logger.warning("Device fingerprint does not match")
                 raise TokenInvalid("Device fingerprint does not match")
             logger.info("Token successfully verified")
-            return token_payload
+            token_verification = TokenVerification(value=token, **token_payload.dict())
+            return token_verification
         except jwt.ExpiredSignatureError:
             logger.warning("Token expired")
             raise TokenExpired("Token expired. Get new one")

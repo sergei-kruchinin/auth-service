@@ -79,7 +79,7 @@ def token_required(f):
 
         token = authorization_header[len(prefix):]
         try:
-            verification = TokenService.verify_token(token, device_fingerprint).dict()
+            verification = TokenService.verify_token(token, device_fingerprint)
         except TokenBlacklisted as e:
             logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e
@@ -90,7 +90,7 @@ def token_required(f):
             logger.error(f"Invalid token: {str(e)}")
             raise TokenInvalid("Invalid token") from e
 
-        return f(db, token, verification, *args, **kwargs)
+        return f(db, verification, *args, **kwargs)
 
     return with_db(decorated)
 

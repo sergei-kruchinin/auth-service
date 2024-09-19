@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
-from typing import Dict
+from typing import Dict, Any
 
 
 # Pydantic models
@@ -18,9 +18,16 @@ class TokenPayload(BaseModel):
     exp: datetime = Field(default=None, description="The value will be set by token generation")
 
 
-class TokenData(BaseModel):
-    value: str
+class TokenValue(BaseModel):
+    value: constr(min_length=95) = Field(..., description="JWT токен")
+
+
+class TokenData(TokenValue):
     expires_in: int
+
+
+class TokenVerification(TokenPayload, TokenValue):
+    pass
 
 
 class AuthResponse(BaseModel):
@@ -54,7 +61,7 @@ class UserCreateSchema(UserBaseSchema):
 
 class OAuthUserCreateSchema(UserCreateSchema):
     @model_validator(mode='before')
-    def set_composite_login(values):
+    def set_composite_login(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         Set a composite login if it's missing or empty.
 
@@ -75,7 +82,7 @@ class OAuthUserCreateSchema(UserCreateSchema):
 class UserCreateInputSchema(UserCreateSchema):
 
     @model_validator(mode='before')
-    def set_first_name(values):
+    def set_first_name(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         Set the first name to be the same as the login if it's missing.
         This can be particularly useful for system users such as 'admin' or 'root',
@@ -96,7 +103,7 @@ class UserCreateInputSchema(UserCreateSchema):
         return values
 
     @model_validator(mode='before')
-    def no_colon_in_login(values):
+    def no_colon_in_login(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ensure that the login field does not contain a colon (':') character.
 

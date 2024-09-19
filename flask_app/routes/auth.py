@@ -1,15 +1,14 @@
 # flask_app > routes > auth.py
+from core.models import *
+from core.schemas import AuthRequest, AuthResponse, UserCreateInputSchema, TokenVerification
+from .dependencies import *
+from core.yandex_oauth import YandexOAuthService
+from core.exceptions import *
 
 import requests
 from flask import Blueprint, make_response, Response
-from core.models import *
-from core.schemas import AuthRequest, AuthResponse, UserCreateInputSchema
 from pydantic import ValidationError
-from core.exceptions import *
-from .dependencies import *
-from core.yandex_oauth import YandexOAuthService
 import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ def create_auth_response(authentication: AuthResponse) -> Response:
 def register_routes(bp: Blueprint):
     @bp.route("/auth", methods=["POST"])
     @with_db
-    def auth(db) -> Response:
+    def auth(db: Session) -> Response:
         """
         Route for authenticating a user.
 
@@ -90,7 +89,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/auth/yandex/callback", methods=["POST", "GET"])
     @with_db
-    def auth_yandex_callback(db) -> Response:
+    def auth_yandex_callback(db: Session) -> Response:
         """
         Route for handling Yandex OAuth callback.
 
@@ -133,10 +132,10 @@ def register_routes(bp: Blueprint):
             logger.info("Successfully retrieved user info from Yandex")
         except requests.exceptions.RequestException as e:
             logger.error(f'Unable to retrieve user data: {str(e)}')
-            raise OAuthUserDataRetrievalError(f'Unable to retrieve user data') from e
+            raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)} ?') from e
         except ValidationError as e:
             logger.error(f"Invalid user data received from Yandex: {str(e)}")
-            raise CustomValidationError(f'Invalid user data received from Yandex') from e
+            raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)} ? ') from e
 
         # add to our database (or update)
         try:
@@ -152,7 +151,7 @@ def register_routes(bp: Blueprint):
         return create_auth_response(authentication)
 
     @bp.route("/auth/yandex/by_code", methods=["GET"])
-    def auth_yandex_by_code():
+    def auth_yandex_by_code() -> Response:
         """
         Route for generating Yandex OAuth authorization URI.
 
@@ -163,13 +162,14 @@ def register_routes(bp: Blueprint):
         """
         logger.info("Yandex OAuth by code called")
         iframe_uri = get_yandex_uri()
-        return {'iframe_uri': iframe_uri}
+        response = make_response({'iframe_uri': iframe_uri}, 200)
+        return response
 
     # ### 2. Token Verification and Invalidation Methods ###
 
     @bp.route("/verify", methods=["POST"])
     @token_required
-    def verify(db, _, verification):
+    def verify(_db, verification: TokenVerification) -> Response:
         """
         Route for verifying an authentication token.
 
@@ -183,11 +183,12 @@ def register_routes(bp: Blueprint):
         401: For invalid or expired tokens
         """
         logger.info("Verify route called")
-        return verification
+        response = make_response(verification.dict(), 200)
+        return response
 
     @bp.route("/logout", methods=["POST"])
     @token_required
-    def logout(db, token, _):
+    def logout(_db, verification: TokenVerification) -> Response:
         """
         Route for logging out a user and invalidating the token.
 
@@ -206,13 +207,15 @@ def register_routes(bp: Blueprint):
         logger.info("Logout route called")
 
         try:
+            token = verification.value
             TokenService.add_to_blacklist(token)
             message = 'Token has been invalidated (added to blacklist).'
             status = True
         except DatabaseError as e:
             raise DatabaseError('Error checking if token is blacklisted') from e
 
-        return {'success': status, 'message': message}
+        response = make_response({'success': status, 'message': message}, 200)
+        return response
 
     # TODO make a logout from all devices
     # TODO make a list of login devices, needed it for logout
@@ -222,7 +225,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/users", methods=["POST"])
     @token_required
-    def users_create(db, _, verification):
+    def users_create(db: Session,  verification: TokenVerification) -> Response:
         """
         Route for creating a new user (admin only).
 
@@ -251,7 +254,7 @@ def register_routes(bp: Blueprint):
         """
         logger.info("Create user route called")
 
-        if not verification.get("is_admin"):
+        if not verification.is_admin:
             logger.warning("is_admin if False")
             raise AdminRequiredError("Access Denied")
 
@@ -275,11 +278,12 @@ def register_routes(bp: Blueprint):
             raise DatabaseError(f"There was an error while creating a user") from e
 
         logger.info("User created successfully")
-        return {'success': True}, 201
+        response = make_response({'success': True}, 201)
+        return response
 
     @bp.route("/users", methods=["GET"])
     @token_required
-    def users_list(db, _, verification):
+    def users_list(db: Session, verification: TokenVerification) -> Response:
         """
         Route for retrieving the list of users (admin only).
 
@@ -294,13 +298,15 @@ def register_routes(bp: Blueprint):
         500: If there's an error retrieving the list
         """
         logger.info("Fetching list of users")
-        if not verification.get("is_admin"):
+        if not verification.is_admin:
             logger.warning("is_admin is False")
             raise AdminRequiredError('Access Denied')
         try:
             users_list_json = User.list(db)
             logger.info("Users list retrieved successfully")
-            return users_list_json
+
+            response = make_response(users_list_json, 201)
+            return response
 
         except DatabaseError as e:
             logger.error(f"here was an error while retrieving the users list. DatabaseError: {e}")
