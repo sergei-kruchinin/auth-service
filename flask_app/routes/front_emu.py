@@ -1,6 +1,5 @@
 # flask_app > routes > front_emu.py
 
-from core.models import *
 from .dependencies import get_yandex_uri
 from flask import render_template, Blueprint
 import requests
@@ -35,7 +34,7 @@ def register_routes(bp: Blueprint):
         """
 
         logger.info("Root route called")
-        md_content = ""
+
         readme_local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "README.md")
 
         # Attempt to read the local README.md file
@@ -84,7 +83,7 @@ def register_routes(bp: Blueprint):
         """
 
         logger.info("License route called")
-        license_content = ""
+
         license_local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "LICENSE")
 
         # Attempt to read the local LICENSE file

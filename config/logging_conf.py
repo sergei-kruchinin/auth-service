@@ -9,7 +9,8 @@ def setup_logging():
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     # Getting loggers for modules
-    core_models_logger = logging.getLogger('core.models')
+    core_models_user_logger = logging.getLogger('core.models.user')
+    core_models_user_session_logger = logging.getLogger('core.models.user_session')
     flask_app_routes_auth_logger = logging.getLogger('flask_app.routes.auth')
     flask_app_routes_front_emu_logger = logging.getLogger('flask_app.routes.front_emu')
     flask_app_routes_dependencies_logger = logging.getLogger('flask_app.routes.dependencies')
@@ -19,7 +20,8 @@ def setup_logging():
     core_token_service_logger = logging.getLogger('core.token_service')
 
     # Setup logging levels
-    core_models_logger.setLevel(logging.INFO)
+    core_models_user_logger.setLevel(logging.INFO)
+    core_models_user_session_logger.setLevel(logging.INFO)
     flask_app_routes_auth_logger.setLevel(logging.INFO)
     flask_app_routes_front_emu_logger.setLevel(logging.INFO)
     flask_app_routes_dependencies_logger.setLevel(logging.INFO)

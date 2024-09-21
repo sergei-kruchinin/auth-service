@@ -172,3 +172,12 @@ class YandexUserInfo(BaseModel):
     id: str
     first_name: str
     last_name: str
+
+
+class UserSessionData(BaseModel):
+    user_id: int
+    ip_address: str
+    user_agent: str
+    accept_language: str
+    refresh_token: str
+    expires_at: datetime

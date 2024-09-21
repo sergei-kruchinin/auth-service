@@ -4,9 +4,9 @@ from functools import wraps
 from flask import request
 import logging
 from core.token_service import TokenService
-from core.exceptions import *
 import os
-from core import get_db
+from core.models import get_db
+from core.exceptions import *
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)

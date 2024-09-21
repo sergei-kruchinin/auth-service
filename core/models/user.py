@@ -1,21 +1,36 @@
-# core > models.py
+# core > models > user.py
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-from . import Base
-from .schemas import (AuthRequest, TokenPayload, AuthTokens,
-                      OAuthUserCreateSchema, UserCreateSchema, TokenData,
-                      ManualUserCreateSchema, UserResponseSchema)
-from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
-from .token_service import TokenService, TokenType
-from .password_hash import PasswordHash
+from sqlalchemy.orm import relationship, Session
+
+from .base import Base
+from core.schemas import *
+from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
+from core.token_service import TokenService, TokenType
+from core.password_hash import PasswordHash
 from typing import Dict, List, Optional
 import logging
 logger = logging.getLogger(__name__)
 
 
 class User(Base):
+    """
+    Represents a user in the application.
+
+    Attributes:
+        id (int): The unique identifier for the user.
+        login (str): The login name of the user.
+        first_name (str): The first name of the user (optional).
+        last_name (str): The last name of the user (optional).
+        secret (str): The password hash or secret for the user (optional).
+        is_admin (bool): Flag indicating whether the user has admin privileges.
+        source (str): The source from which the user was created (e.g., 'manual', 'oauth') (optional).
+        oa_id (str): The OAuth ID for the user (optional).
+        created_at (datetime): The timestamp when the user was created.
+        updated_at (datetime): The timestamp when the user was last updated.
+    """
+
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     login = Column(String(128), unique=True, nullable=False)
@@ -33,6 +48,8 @@ class User(Base):
         DateTime(timezone=True),
         onupdate=func.now()
     )
+
+    sessions = relationship("UserSession", back_populates="user")
 
     def __init__(self, user_data: UserCreateSchema):
         self.login = user_data.login
@@ -109,7 +126,7 @@ class User(Base):
             new_user.set_oa_id_if_user_is_manual(db)
             logger.info(f"User created successfully: {new_user.login}")
             return new_user
-        except DatabaseError as e:
+        except DatabaseError:
             raise
         except SQLAlchemyError as e:
             db.rollback()

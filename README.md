@@ -88,13 +88,18 @@ YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
 flask_auth_service/
 ├── core/
 │   ├── __init__.py
-│   ├── models.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   ├── user_session.py
+│   │   └── base.py
 │   ├── token_service.py
 │   ├── password_hash.py
 │   ├── exceptions.py
 │   ├── yandex_oauth.py
 │   └── schemas.py
 ├── flask_app/
+│   ├── __init__.py
 │   ├── app.py
 │   ├── error_handlers.py
 │   └── routes/
