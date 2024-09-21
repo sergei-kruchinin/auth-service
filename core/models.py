@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from . import Base
 from .schemas import (AuthRequest, TokenPayload, AuthTokens,
-                      OAuthUserCreateSchema, TokenData,
+                      OAuthUserCreateSchema, UserCreateSchema, TokenData,
                       UserCreateInputSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from .token_service import TokenService, TokenType
@@ -34,7 +34,7 @@ class User(Base):
         onupdate=func.now()
     )
 
-    def __init__(self, user_data: OAuthUserCreateSchema | UserCreateInputSchema):
+    def __init__(self, user_data: UserCreateSchema):
         self.login = user_data.login
         self.first_name = user_data.first_name
         self.last_name = user_data.last_name
@@ -66,14 +66,14 @@ class User(Base):
     # ### 3. User Creation Methods ###
 
     @classmethod
-    def __create(cls, db: Session, user_data: OAuthUserCreateSchema | UserCreateInputSchema) -> 'User':
+    def __create(cls, db: Session, user_data: UserCreateSchema) -> 'User':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
 
         Args:
             db (Session): Session
-            user_data (OAuthUserCreateSchema | UserCreateInputSchema): The data to create a new user.
+            user_data (UserCreateSchema): The data to create a new user.
 
         Returns:
             Users: The newly created user.
@@ -84,10 +84,12 @@ class User(Base):
           """
         logger.debug("Creating new user")
         try:
+
             new_user = cls(user_data)
             db.add(new_user)
             db.commit()
 
+            # This code could not be moved to Schemas because id in Schemas not present and so unfilled
             if new_user.source == 'manual' and new_user.oa_id is None:
                 new_user.oa_id = str(new_user.id)
                 db.commit()
@@ -144,6 +146,7 @@ class User(Base):
             raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
 
         try:
+            user_data = user_data.to_user_create_schema()
             user = cls.__create(db, user_data)
             return user
         except DatabaseError as e:
@@ -153,31 +156,6 @@ class User(Base):
             logger.error(f"There was an error while creating user: {str(e)}")
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
-    @classmethod
-    def __create_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
-        """
-        Create a new OAuth user.
-
-        Args:
-            db (Session): Session
-            oauth_user_data (OAuthUserCreateSchema): The data to create a new OAuth user.
-
-        Returns:
-            User: The newly created user.
-
-        Raises:
-            DatabaseError: If there was an error while creating the user.
-        """
-        try:
-            user = cls(oauth_user_data)
-            db.add(user)
-            db.commit()
-            return user
-        except SQLAlchemyError as e:
-            db.rollback()
-            logger.error(f"There was an error while creating the user: {str(e)}")
-            raise DatabaseError(str(e)) from e
-
     def __update_oauth_user(self, db: Session, oauth_user_data: OAuthUserCreateSchema) -> None:
         """
         Update an existing OAuth user with new data.
@@ -185,9 +163,6 @@ class User(Base):
         Args:
             db (Session): Session
             oauth_user_data (OAuthUserCreateSchema): New data for updating the user
-
-        Returns:
-            User: The updated user
         """
         self.first_name = oauth_user_data.first_name
         self.last_name = oauth_user_data.last_name
@@ -223,7 +198,8 @@ class User(Base):
             user = cls.__get_user_by_login(db, oauth_user_data.login)
 
             if user is None:
-                user = cls.__create_oauth_user(db, oauth_user_data)
+                user_data = oauth_user_data.to_user_create_schema()
+                user = cls.__create(db, user_data)
                 logger.info(f"OAuth user created: {user.login}")
             else:
                 user.__update_oauth_user(db, oauth_user_data)

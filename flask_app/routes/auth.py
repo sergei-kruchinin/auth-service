@@ -237,8 +237,8 @@ def register_routes(bp: Blueprint):
             "last_name": "<last_name>",
             "password": "<password>",
             "is_admin": <true/false>
-            "source": "<yandex/manual>",
-            "oa_id" : <yandex_id>"
+            "source": "<manual>",
+            "oa_id" : "<null>"
         }
 
         Returns:

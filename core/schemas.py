@@ -50,7 +50,7 @@ class UserBaseSchema(BaseModel):
     first_name: str | None = Field(default=None, description="The first name of the user")
     last_name: str = Field(default="system", description="The last name of the user")
     is_admin: bool = Field(default=False, description="Boolean indicating if the user is a system superuser.")
-    source: str = Field(default="manual", description="The source of the user (manual/yandex)")
+    source: str | None = Field(default=None, description="The source of the user (manual/yandex)")
     oa_id: str | None = Field(default=None, description="The OAuth ID.")
 
 
@@ -58,8 +58,20 @@ class UserCreateSchema(UserBaseSchema):
     password: (constr(min_length=8, strip_whitespace=True)
                | None) = Field(default=None, description="The plaintext password provided by the user or None.")
 
+    def to_user_create_schema(self) -> 'UserCreateSchema':
+        return UserCreateSchema(
+            login=self.login,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            is_admin=self.is_admin,
+            source=self.source,
+            oa_id=self.oa_id,
+            password=self.password
+        )
+
 
 class OAuthUserCreateSchema(UserCreateSchema):
+
     @model_validator(mode='before')
     def set_composite_login(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -100,6 +112,27 @@ class UserCreateInputSchema(UserCreateSchema):
         """
         if not values.get('first_name'):
             values['first_name'] = values.get('login')
+        return values
+
+    @model_validator(mode='before')
+    def set_source_for_manual_user(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Set the source as 'manual' for manual users
+
+
+        This method does not check 'source' fields are present,
+        because it should not present in input for manual users.
+        If it is filled it will override.
+
+        Args:
+            values (dict): The values received for model fields.
+
+        Returns:
+              dict: The updated values with source set as 'manual'.
+        """
+
+        values['oa_id'] = values.get('id')
+        values['source'] = 'manual'
         return values
 
     @model_validator(mode='before')
