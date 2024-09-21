@@ -112,6 +112,8 @@ flask_auth_service/
 │   └── yandex_callback.html
 ├── config/
 │   └── logger_config.py
+├── tests/
+│   └── test_auth.py
 ├── create_db_once.py
 ├── requirements.txt
 ├── .env
