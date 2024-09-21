@@ -1,12 +1,12 @@
 # core > schemas.py
+# Pydantic models
 
 from datetime import datetime
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 from typing import Dict, Any
 
 
-# Pydantic models
-
+# === Token Models ===
 
 class TokenPayload(BaseModel):
     id: int = Field(..., description="User id in our database")
@@ -22,12 +22,29 @@ class TokenValue(BaseModel):
     value: constr(min_length=95) = Field(..., description="JWT токен")
 
 
+class AccessTokenResponseValue(BaseModel):
+    access_token: constr(min_length=95) = Field(..., description="JWT токен")
+
+
 class TokenData(TokenValue):
     expires_in: int
 
+    def to_response(self):
+        """
+        Converts TokenData to TokenDataResponse.
+        """
+        return TokenDataResponse(
+            access_token=self.value,
+            expires_in=self.expires_in
+        )
 
-class TokenVerification(TokenPayload, TokenValue):
-    pass
+
+class TokenDataResponse(AccessTokenResponseValue):
+    expires_in: int
+
+
+class TokenVerification(TokenPayload, AccessTokenResponseValue):
+    success: bool = True
 
 
 class AuthTokens(BaseModel):
@@ -43,6 +60,9 @@ class AuthRequest(BaseModel):
     )
     device_fingerprint: str = Field(
         ..., description="The fingerprint of the user's device")
+
+
+# === User Models ===
 
 
 class UserBaseSchema(BaseModel):
@@ -70,6 +90,9 @@ class UserCreateSchema(UserBaseSchema):
         )
 
 
+# === OAuth User Create Schema ===
+
+
 class OAuthUserCreateSchema(UserCreateSchema):
 
     @model_validator(mode='before')
@@ -90,6 +113,8 @@ class OAuthUserCreateSchema(UserCreateSchema):
             values['login'] = f"{values.get('source')}:{values.get('oa_id')}"
         return values
 
+
+# === Manual User Create Schema ===
 
 class ManualUserCreateSchema(UserCreateSchema):
 
@@ -161,6 +186,8 @@ class ManualUserCreateSchema(UserCreateSchema):
         return values
 
 
+# === User Response Schema ===
+
 class UserResponseSchema(UserBaseSchema):
     id: int
     # created_at: str
@@ -168,11 +195,15 @@ class UserResponseSchema(UserBaseSchema):
     model_config = ConfigDict(from_attributes=True)
 
 
+# === Yandex User Info ===
+
 class YandexUserInfo(BaseModel):
     id: str
     first_name: str
     last_name: str
 
+
+# === User Session Data ===
 
 class UserSessionData(BaseModel):
     user_id: int

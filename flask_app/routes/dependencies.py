@@ -80,6 +80,7 @@ def token_required(f):
         token = authorization_header[len(prefix):]
         try:
             verification = TokenService.verify_token(token, device_fingerprint)
+            # verification.success = True   #  not need: success already is True
         except TokenBlacklisted as e:
             logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e

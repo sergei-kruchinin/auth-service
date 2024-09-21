@@ -32,15 +32,18 @@ def create_auth_response(authentication: AuthTokens) -> Response:
     access_token = authentication.tokens[TokenType.ACCESS.value]
     refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
+    # Convert access token from TokenData to TokenDataResponse
+    access_token_response = access_token.to_response().dict()
+
     # Create response object with access token
-    response = make_response(access_token.dict(), 200)
+    response = make_response(access_token_response, 200)
 
     # Set the refresh token in http-only cookie
     response.set_cookie(
         'refresh_token',
         refresh_token.value,
         httponly=True,
-        secure=True,  # Use True in production to enforce HTTPS
+        secure=True,    # Use True in production to enforce HTTPS
         samesite='Lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
     )
     logger.info("Auth response created")
@@ -204,7 +207,7 @@ def register_routes(bp: Blueprint):
         logger.info("Logout route called")
 
         try:
-            token = verification.value
+            token = verification.access_token
             TokenService.add_to_blacklist(token)
             message = 'Token has been invalidated (added to blacklist).'
             status = True
@@ -304,7 +307,7 @@ def register_routes(bp: Blueprint):
             users_list_json = User.list(db)
             logger.info("Users list retrieved successfully")
 
-            response = make_response(users_list_json, 201)
+            response = make_response(users_list_json, 200)
             return response
 
         except DatabaseError as e:
