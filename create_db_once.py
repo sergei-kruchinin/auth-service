@@ -3,7 +3,7 @@
 from flask_app import create_app
 from core import init_db, db_session, engine
 from core.models import User, Base
-from core.schemas import UserCreateInputSchema
+from core.schemas import ManualUserCreateSchema
 
 app = create_app()
 
@@ -12,7 +12,7 @@ with app.app_context():
     init_db()
     db_session.remove()
     db_session.configure(bind=engine)
-    user_data = UserCreateInputSchema(
+    user_data = ManualUserCreateSchema(
         login='admin',
         first_name='admin',
         last_name='system',

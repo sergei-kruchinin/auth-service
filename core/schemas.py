@@ -91,7 +91,7 @@ class OAuthUserCreateSchema(UserCreateSchema):
         return values
 
 
-class UserCreateInputSchema(UserCreateSchema):
+class ManualUserCreateSchema(UserCreateSchema):
 
     @model_validator(mode='before')
     def set_first_name(cls, values: Dict[str, Any]) -> Dict[str, Any]:

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from . import Base
 from .schemas import (AuthRequest, TokenPayload, AuthTokens,
                       OAuthUserCreateSchema, UserCreateSchema, TokenData,
-                      UserCreateInputSchema, UserResponseSchema)
+                      ManualUserCreateSchema, UserResponseSchema)
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from .token_service import TokenService, TokenType
 from .password_hash import PasswordHash
@@ -65,6 +65,24 @@ class User(Base):
 
     # ### 3. User Creation Methods ###
 
+    def set_oa_id_if_user_is_manual(self, db: Session) -> None:
+        """
+        Set the `oa_id` for a manually created user.
+
+        This code cannot be moved to Schemas because `id` in Schemas is not present and so cannot be filled.
+
+        Args:
+            db (Session): The SQLAlchemy session to use for the database query.
+        """
+        try:
+            if self.source == 'manual' and self.oa_id is None:
+                self.oa_id = str(self.id)
+                db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"There was an error while creating a user: {str(e)}")
+            raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
+
     @classmethod
     def __create(cls, db: Session, user_data: UserCreateSchema) -> 'User':
         """
@@ -88,13 +106,11 @@ class User(Base):
             new_user = cls(user_data)
             db.add(new_user)
             db.commit()
-
-            # This code could not be moved to Schemas because id in Schemas not present and so unfilled
-            if new_user.source == 'manual' and new_user.oa_id is None:
-                new_user.oa_id = str(new_user.id)
-                db.commit()
+            new_user.set_oa_id_if_user_is_manual(db)
             logger.info(f"User created successfully: {new_user.login}")
             return new_user
+        except DatabaseError as e:
+            raise
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"There was an error while creating a user: {str(e)}")
@@ -123,7 +139,7 @@ class User(Base):
             raise DatabaseError(f"There was an error while fetching the user: {str(e)}") from e
 
     @classmethod
-    def create_with_check(cls, db: Session, user_data: UserCreateInputSchema) -> 'User':
+    def create_with_check(cls, db: Session, user_data: ManualUserCreateSchema) -> 'User':
         """
         Create a new user after checking if the user already exists.
         If user exists, raises a UserAlreadyExistsError indicating user already exists.

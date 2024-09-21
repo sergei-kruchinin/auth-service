@@ -1,6 +1,6 @@
 # flask_app > routes > auth.py
 from core.models import *
-from core.schemas import AuthRequest, AuthTokens, UserCreateInputSchema, TokenVerification
+from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *
@@ -259,9 +259,9 @@ def register_routes(bp: Blueprint):
             logger.error("No input data provided")
             raise CustomValidationError("No input data provided")
         try:
-            user_data = UserCreateInputSchema(**json_data)
+            user_data = ManualUserCreateSchema(**json_data)
         except ValidationError as e:
-            logger.warning(f"Not Correct UserCreateInputSchema for manual user: {str(e)}")
+            logger.warning(f"Not Correct ManualUserCreateSchema for manual user: {str(e)}")
             raise InsufficientData(f"Invalid login format") from e
 
         try:
