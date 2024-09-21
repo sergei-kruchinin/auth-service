@@ -10,7 +10,7 @@ from .schemas import (AuthRequest, TokenPayload, AuthTokens,
 from .exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from .token_service import TokenService, TokenType
 from .password_hash import PasswordHash
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,28 @@ class User(Base):
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
+    def __get_user_by_login(cls, db: Session, login: str) -> Optional['User']:
+        """
+        Fetch a user by login.
+
+        This method is used for retrieving a user by their login.
+        It can also be used for checking if a user exists in the database.
+
+        Args:
+            db (Session): The SQLAlchemy session to use for the database query.
+            login (str): The login of the user to fetch.
+
+        Returns:
+            User: The user object if found, otherwise None.
+        """
+        logger.debug(f"Fetching user by login: {login}")
+        try:
+            return db.query(cls).filter_by(login=login).first()
+        except SQLAlchemyError as e:
+            logger.error(f"There was an error while fetching the user: {str(e)}")
+            raise DatabaseError(f"There was an error while fetching the user: {str(e)}") from e
+
+    @classmethod
     def create_with_check(cls, db: Session, user_data: UserCreateInputSchema) -> 'User':
         """
         Create a new user after checking if the user already exists.
@@ -114,18 +136,108 @@ class User(Base):
         Raises:
             UserAlreadyExistsError: If user with the login already exists.
         """
-        # TODO further: class constructor instead of method (?)
+
         logger.debug("Creating new user with check")
 
-        if db.query(cls).filter_by(login=user_data.login).first():
+        if cls.__get_user_by_login(db, user_data.login) is not None:
             logger.warning(f"User with login {user_data.login} already exists")
             raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
+
         try:
             user = cls.__create(db, user_data)
             return user
+        except DatabaseError as e:
+            logger.error(f"Database error occurred: {str(e)}")
+            raise
         except SQLAlchemyError as e:
             logger.error(f"There was an error while creating user: {str(e)}")
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
+
+    @classmethod
+    def __create_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
+        """
+        Create a new OAuth user.
+
+        Args:
+            db (Session): Session
+            oauth_user_data (OAuthUserCreateSchema): The data to create a new OAuth user.
+
+        Returns:
+            User: The newly created user.
+
+        Raises:
+            DatabaseError: If there was an error while creating the user.
+        """
+        try:
+            user = cls(oauth_user_data)
+            db.add(user)
+            db.commit()
+            return user
+        except SQLAlchemyError as e:
+            db.rollback()
+            logger.error(f"There was an error while creating the user: {str(e)}")
+            raise DatabaseError(str(e)) from e
+
+    @classmethod
+    def __update_oauth_user(cls, db: Session, user: 'User', oauth_user_data: OAuthUserCreateSchema) -> 'User':
+        """
+        Update an existing OAuth user with new data.
+
+        Args:
+            db (Session): Session
+            user (User): Existing user to update
+            oauth_user_data (OAuthUserCreateSchema): New data for updating the user
+
+        Returns:
+            User: The updated user
+        """
+        user.first_name = oauth_user_data.first_name
+        user.last_name = oauth_user_data.last_name
+        user.is_admin = oauth_user_data.is_admin
+
+        try:
+            db.commit()
+        except SQLAlchemyError as e:
+            logger.error(f"There was an error while updating the user: {str(e)}")
+            db.rollback()
+            raise DatabaseError(str(e)) from e
+
+        return user
+
+    @classmethod
+    def create_or_update_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
+        """
+        Create or update a user for OAuth 2.0 authorization.
+        It always updates user data from OAuth Provider,
+        if it is the first authorization -- create user data in the database.
+
+        Args:
+            db (Session): Session
+            oauth_user_data (OAuthUserCreateSchema): The OAuth User data without login and with source and oa_id
+
+        Returns:
+            User: The created or updated user.
+
+        Raises:
+            DatabaseError: If there was an error while updating the user.
+        """
+        logger.debug("Creating or updating OAuth user")
+
+        try:
+            user = cls.__get_user_by_login(db, oauth_user_data.login)
+
+            if user is None:
+                user = cls.__create_oauth_user(db, oauth_user_data)
+                logger.info(f"OAuth user created: {user.login}")
+            else:
+                user = cls.__update_oauth_user(db, user, oauth_user_data)
+                logger.info(f"OAuth user updated: {user.login}")
+
+        except DatabaseError as e:
+            logger.error(f"There was an error while creating/updating the user: {str(e)}")
+            raise DatabaseError(f"There was an error while creating/updating the user: {str(e)}") from e
+
+        return user
 
     @classmethod
     def create_or_update_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
@@ -151,7 +263,7 @@ class User(Base):
         logger.debug("Creating or updating OAuth user")
         try:
             # is user already in database?
-            user = db.query(cls).filter_by(login=oauth_user_data.login).first()
+            user = cls.__get_user_by_login(db, oauth_user_data.login)
 
             if user is None:
                 # User doesn't exist, so create a new one
@@ -166,6 +278,9 @@ class User(Base):
                 db.commit()
                 logger.info(f"OAuth user updated: {user.login}")
             return user
+        except DatabaseError as e:
+            logger.error(f"Database error occurred: {str(e)}")
+            raise
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"There was an error while updating the user: {str(e)}")
@@ -249,4 +364,4 @@ class User(Base):
             str: Representation of the user's login.
         """
 
-        return f'User {self.login}'
+        return f'<User(login={self.login}, id={self.id}, is_admin={self.is_admin})>'
