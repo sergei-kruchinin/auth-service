@@ -178,22 +178,20 @@ class User(Base):
             logger.error(f"There was an error while creating the user: {str(e)}")
             raise DatabaseError(str(e)) from e
 
-    @classmethod
-    def __update_oauth_user(cls, db: Session, user: 'User', oauth_user_data: OAuthUserCreateSchema) -> 'User':
+    def __update_oauth_user(self, db: Session, oauth_user_data: OAuthUserCreateSchema) -> None:
         """
         Update an existing OAuth user with new data.
 
         Args:
             db (Session): Session
-            user (User): Existing user to update
             oauth_user_data (OAuthUserCreateSchema): New data for updating the user
 
         Returns:
             User: The updated user
         """
-        user.first_name = oauth_user_data.first_name
-        user.last_name = oauth_user_data.last_name
-        user.is_admin = oauth_user_data.is_admin
+        self.first_name = oauth_user_data.first_name
+        self.last_name = oauth_user_data.last_name
+        self.is_admin = oauth_user_data.is_admin
 
         try:
             db.commit()
@@ -201,8 +199,6 @@ class User(Base):
             logger.error(f"There was an error while updating the user: {str(e)}")
             db.rollback()
             raise DatabaseError(str(e)) from e
-
-        return user
 
     @classmethod
     def create_or_update_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
@@ -230,7 +226,7 @@ class User(Base):
                 user = cls.__create_oauth_user(db, oauth_user_data)
                 logger.info(f"OAuth user created: {user.login}")
             else:
-                user = cls.__update_oauth_user(db, user, oauth_user_data)
+                user.__update_oauth_user(db, oauth_user_data)
                 logger.info(f"OAuth user updated: {user.login}")
 
         except DatabaseError as e:
@@ -238,53 +234,6 @@ class User(Base):
             raise DatabaseError(f"There was an error while creating/updating the user: {str(e)}") from e
 
         return user
-
-    @classmethod
-    def create_or_update_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
-        """
-        Create or update a user for OAuth 2.0 authorization.
-        It always updates user data from OAuth Provider,
-        if it is the first authorization -- create user data in the database.
-
-        Args:
-            db (Session): Session
-            oauth_user_data (OAuthUserCreateSchema): The OAuth User data without login and with source and oa_id
-
-        Returns:
-            Users: The created or updated user.
-
-        Raises:
-            DatabaseError: If there was an error while updating the user.
-        """
-
-        # TODO Further : Single Table Inheritance (STI) class OAuthUser
-        # and it's constructor (?)
-
-        logger.debug("Creating or updating OAuth user")
-        try:
-            # is user already in database?
-            user = cls.__get_user_by_login(db, oauth_user_data.login)
-
-            if user is None:
-                # User doesn't exist, so create a new one
-                user = cls.__create(db, oauth_user_data)
-                logger.info(f"OAuth user created: {user.login}")
-            else:
-                # User exists, update the existing user information with the new details
-                user.first_name = oauth_user_data.first_name
-                user.last_name = oauth_user_data.last_name
-                user.is_admin = oauth_user_data.is_admin
-
-                db.commit()
-                logger.info(f"OAuth user updated: {user.login}")
-            return user
-        except DatabaseError as e:
-            logger.error(f"Database error occurred: {str(e)}")
-            raise
-        except SQLAlchemyError as e:
-            db.rollback()
-            logger.error(f"There was an error while updating the user: {str(e)}")
-            raise DatabaseError(f"There was an error while updating the user: {str(e)}") from e
 
     # ### 4. Authentication Methods ###
 

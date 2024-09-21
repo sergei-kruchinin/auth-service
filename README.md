@@ -27,7 +27,7 @@ Auth Service is a robust and modular authentication and authorization system bui
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - Flask
 - SQLAlchemy
 - Redis
