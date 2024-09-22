@@ -155,7 +155,7 @@ def register_routes(router: APIRouter):
             json_data: ManualUserCreateSchema,
             verification: TokenVerification = Depends(token_required),
             db: Session = Depends(get_db_session)
-    ) -> dict:
+    ) -> Response:
         """Route for creating a new user (admin only)."""
         logger.info("Create user route called")
 
@@ -177,9 +177,6 @@ def register_routes(router: APIRouter):
             status_code=201,
             content={'success': True, 'message': 'User created'}
         )
-
-
-
 
     @auth_router.get("/users", response_model=List[UserResponseSchema])
     async def users_list(
