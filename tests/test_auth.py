@@ -4,7 +4,9 @@ from core.schemas import ManualUserCreateSchema, AuthRequest
 from core.models import Base, engine, User
 from sqlalchemy.orm import sessionmaker
 
-BASE_URL = "http://localhost:5000"
+
+BASE_URL= "http://localhost:5000"
+
 
 SessionLocal = sessionmaker(bind=engine)
 
@@ -123,3 +125,4 @@ def test_get_users(get_admin_token):
     data = response.json()
     assert isinstance(data['users'], list), "Expected data to be a list"
     assert len(data['users']) > 0, "Expected at least one user"
+

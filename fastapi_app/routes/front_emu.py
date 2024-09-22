@@ -1,7 +1,9 @@
-# flask_app > routes > front_emu.py
+# fastapi_app > routes > front_emu.py
 
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from .dependencies import get_yandex_uri
-from flask import render_template, Blueprint
 import requests
 import markdown
 import os
@@ -9,30 +11,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+templates = Jinja2Templates(directory="../templates")
 
-def register_routes(bp: Blueprint):
+def register_routes(router: APIRouter):
+    front_emu_router = APIRouter()
 
-    # ### 4. Root Route Method: ###
-
-    @bp.route("/", methods=["GET"])
-    def display_readme():
+    @front_emu_router.get("/", response_class=HTMLResponse)
+    async def display_readme(request: Request):
         """
         Default route that fetches and displays the README.md file as HTML.
-
-        This function performs the following steps:
-        1. Attempts to read the local README.md file from the project root.
-        2. If the local file is not found, it fetches the raw content of the README.md file from the given URL.
-        3. Converts the Markdown content to HTML.
-        4. Renders an HTML template to display the converted content.
-
-        Returns:
-            Response: The rendered HTML containing the contents of the README.md file.
-
-        Raises:
-            HTTPException: If there is an error fetching the README.md file,
-                           returns an appropriate HTTP error response.
         """
-
         logger.info("Root route called")
 
         readme_local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "README.md")
@@ -51,7 +39,7 @@ def register_routes(bp: Blueprint):
             if response.status_code != 200:
                 logger.warning(
                     f"Failed to fetch the README.md file from URL. Response status code: {response.status_code}")
-                return "Failed to fetch the README.md file", response.status_code
+                raise HTTPException(status_code=response.status_code, detail="Failed to fetch the README.md file")
 
             md_content = response.text
 
@@ -59,29 +47,13 @@ def register_routes(bp: Blueprint):
         html_content = markdown.markdown(md_content)
 
         logger.info("Rendering template")
-        try:
-            return render_template("readme_md.html", html_content=html_content)
-        except Exception as e:
-            logger.error(f"Unexpected Error rendering template: {str(e)}")
-            return str(e), 500
+        return templates.TemplateResponse("readme_md.html", {"request": request, "html_content": html_content})
 
-    @bp.route("/LICENSE", methods=["GET"])
-    def display_license():
+    @front_emu_router.get("/LICENSE", response_class=HTMLResponse)
+    async def display_license(request: Request):
         """
         Route that fetches and displays the LICENSE file as plain text.
-
-        This function performs the following steps:
-        1. Attempts to read the local LICENSE file from the project root.
-        2. Renders a plain text template to display the content.
-
-        Returns:
-            Response: The rendered plain text containing the contents of the LICENSE file.
-
-        Raises:
-            HTTPException: If there is an error fetching the LICENSE file,
-                           returns an appropriate HTTP error response.
         """
-
         logger.info("License route called")
 
         license_local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "LICENSE")
@@ -94,65 +66,48 @@ def register_routes(bp: Blueprint):
                 logger.info("Successfully read the local LICENSE file")
         except FileNotFoundError:
             logger.warning(f"Local LICENSE file not found at {license_local_path}")
-            return "LICENSE file not found", 404
+            raise HTTPException(status_code=404, detail="LICENSE file not found")
 
-        # Render the content as plain text
-        return render_template("plain_text.html", content=license_content)
+        return templates.TemplateResponse("plain_text.html", {"request": request, "content": license_content})
 
-    # ### 5. Frontend Imitation Methods for testing Yandex OAuth 2.0 ###
-
-    @bp.route("/auth/yandex/by_code.html", methods=["GET"])
-    def auth_yandex_by_code_html():
+    @front_emu_router.get("/auth/yandex/by_code.html", response_class=HTMLResponse)
+    async def auth_yandex_by_code_html():
         """
         Route for displaying the link to Yandex OAuth authorization page.
-
-        Method: GET
-
-        Returns:
-        200: HTML link to Yandex OAuth iframe URI
         """
         logger.info("Yandex OAuth by code HTML called")
         iframe_uri = get_yandex_uri()
-        return f'<a href="{iframe_uri}">{iframe_uri}</a>'
+        return HTMLResponse(content=f'<a href="{iframe_uri}">{iframe_uri}</a>')
 
-    @bp.route("/auth/yandex.html", methods=["GET"])
-    def auth_yandex_html():
+    @front_emu_router.get("/auth/yandex.html", response_class=HTMLResponse)
+    async def auth_yandex_html(request: Request):
         """
         Route for displaying the Yandex OAuth authorization page.
-
-        Method: GET
-
-        Returns:
-        200: HTML page for Yandex OAuth
         """
         logger.info("Yandex OAuth HTML called")
         yandex_id = os.getenv('YANDEX_ID')
         api_domain = os.getenv('API_DOMAIN')
         redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
         callback_uri = f"https://{api_domain}/auth/yandex/callback"
-        # return auth_yandex_html_code(yandex_id, api_domain, redirect_uri, callback_uri)
-        return render_template('auth_yandex.html', yandex_id=yandex_id, api_domain=api_domain,
-                               redirect_uri=redirect_uri, callback_uri=callback_uri)
+        return templates.TemplateResponse("auth_yandex.html", {
+            "request": request,
+            "yandex_id": yandex_id,
+            "api_domain": api_domain,
+            "redirect_uri": redirect_uri,
+            "callback_uri": callback_uri
+        })
 
-    @bp.route("/auth/yandex/callback.html", methods=["GET"])
-    def auth_yandex_callback_html():
+    @front_emu_router.get("/auth/yandex/callback.html", response_class=HTMLResponse)
+    async def auth_yandex_callback_html(request: Request):
         """
         Route for handling Yandex OAuth callback and presenting a helper page.
-
-        Method: GET
-
-        Returns:
-        200: HTML page for Yandex OAuth callback
         """
         logger.info("Yandex OAuth callback HTML called")
         api_domain = os.getenv('API_DOMAIN')
         callback_uri = f"https://{api_domain}/auth/yandex/callback.html"
-        # return auth_yandex_callback_html_code(callback_uri)
-        return render_template('yandex_callback.html', callback_uri=callback_uri)
+        return templates.TemplateResponse("yandex_callback.html", {"request": request, "callback_uri": callback_uri})
 
-    # ### 6. The name of framework hint ###
-
-    @bp.route("/framework.html", methods=["GET"])
+    @front_emu_router.get("/framework.html", response_class=HTMLResponse)
     def framework_htm():
         """
         Route for displaying the name of using framework.
@@ -163,4 +118,7 @@ def register_routes(bp: Blueprint):
         200: The name of framework
         """
         logger.info("The name of framework called")
-        return 'Flask'
+        return HTMLResponse(content=f'Fastapi')
+
+    router.include_router(front_emu_router, prefix="")
+    print(f"FrontEmu routes registered: {[route.path for route in router.routes if hasattr(route, 'path')]}")

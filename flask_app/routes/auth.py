@@ -264,7 +264,7 @@ def register_routes(bp: Blueprint):
             logger.error("No input data provided")
             raise CustomValidationError("No input data provided")
         try:
-            user_data = ManualUserCreateSchema(**json_data)
+            user_data = ManualUserCreateSchema(**json_data) # not correct schema
         except ValidationError as e:
             logger.warning(f"Not Correct ManualUserCreateSchema for manual user: {str(e)}")
             raise InsufficientData(f"Invalid login format") from e

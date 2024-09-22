@@ -12,6 +12,7 @@ from redis import Redis, RedisError
 from enum import Enum
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
+print('AUTH_SECRET:', AUTH_SECRET)
 # Set 60 to see deleting invalidated token from redis when ttl will be expired
 ACCESS_EXPIRES_SECONDS = int(os.getenv('ACCESS_EXPIRES_SECONDS', 600))  # 10 minutes
 REFRESH_EXPIRES_SECONDS = int(os.getenv('REFRESH_EXPIRES_SECONDS', 1209600))  # 14 days
@@ -52,6 +53,10 @@ class TokenService:
         Returns:
             TokenData: The generated token and expiration time.
         """
+
+        if not isinstance(AUTH_SECRET, str):
+            raise TypeError("AUTH_SECRET должен быть строкой")
+
         if token_type == TokenType.ACCESS:
             expires_in = ACCESS_EXPIRES_SECONDS
         elif token_type == TokenType.REFRESH:
