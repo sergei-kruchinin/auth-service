@@ -5,7 +5,7 @@ from core.models import Base, engine, User
 from sqlalchemy.orm import sessionmaker
 
 
-BASE_URL= "http://localhost:5000"
+BASE_URL = "http://localhost:5000"
 
 
 SessionLocal = sessionmaker(bind=engine)

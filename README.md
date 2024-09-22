@@ -1,6 +1,7 @@
 # Auth Service
 
-Auth Service is a robust and modular authentication and authorization system built with Flask. It supports traditional authentication as well as OAuth authentication (e.g., Yandex). The service uses JWT for token handling and includes user management functionality.
+Auth Service is a robust and modular authentication and authorization system, supporting Flask and FastAPI on your own choice. 
+It supports traditional authentication as well as OAuth authentication (e.g., Yandex). The service uses JWT for token handling and includes user management functionality.
 
 ## Table of Contents
 
@@ -28,7 +29,7 @@ Auth Service is a robust and modular authentication and authorization system bui
 ### Prerequisites
 
 - Python 3.10+
-- Flask
+- Flask or FastAPI
 - SQLAlchemy
 - Redis
 - Requests
@@ -76,10 +77,15 @@ YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
     python3 create_db_once.py
     ```
 
-2. Start the Flask application:
+2a. Start the Flask application:
     ```sh
     export PYTHONPATH=.
     python3 flask_app/app.py
+    ```
+2b. Start the FastAPI application:
+    ```sh
+    export PYTHONPATH=.
+    python3 fastapi_app/app.py
     ```
 
 ## Project Structure
@@ -111,7 +117,8 @@ flask_auth_service/
 │   ├── auth_yandex.html
 │   └── yandex_callback.html
 ├── config/
-│   └── logger_config.py
+│   ├── logging_config.py
+│   └── logging_fastapi.py
 ├── tests/
 │   └── test_auth.py
 ├── create_db_once.py
