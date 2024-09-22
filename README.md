@@ -77,12 +77,14 @@ YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
     python3 create_db_once.py
     ```
 
-2a. Start the Flask application:
+2. Start the Flask application:
     ```sh
     export PYTHONPATH=.
     python3 flask_app/app.py
     ```
-2b. Start the FastAPI application:
+    OR 
+
+3. Start the FastAPI application:
     ```sh
     export PYTHONPATH=.
     python3 fastapi_app/app.py
