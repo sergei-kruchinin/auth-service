@@ -20,7 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 def create_auth_response(authentication: AuthTokens, response: Response):
-    """Create JSON response with the access token and set the refresh token in HTTP-only cookie."""
+    """
+    Create JSON response with the access token and set the refresh token in HTTP-only cookie.
+
+    Args:
+        authentication (AuthTokens): The authentication response containing tokens.
+        response: FastAPI response object
+
+    Returns:
+        Response: FastAPI response object with access token in JSON and refresh token in cookie.
+    """
     logger.info("Creating auth response")
 
     access_token = authentication.tokens[TokenType.ACCESS.value]
@@ -48,8 +57,22 @@ def register_routes(router: APIRouter):
     async def auth(
             request: Request,
             db: Session = Depends(get_db_session)
-    ) -> dict:
-        """Route for authenticating a user."""
+    ) -> Response:
+        """
+        Route for authenticating a user.
+
+        Request body:
+        {
+            "login": "<login>",
+            "password": "<password>"
+        }
+
+        Returns:
+        200: {'token': '<token>', 'expires_in': <expires_in>}
+        400: If no data is provided
+        401: For invalid login/password
+        """
+
         logger.info("Auth route called")
         try:
             json_data = await request.json()
@@ -74,8 +97,20 @@ def register_routes(router: APIRouter):
     async def auth_yandex_callback(
             request: Request,
             db: Session = Depends(get_db_session)
-    ) -> dict:
-        """Route for handling Yandex OAuth callback."""
+    ) -> Response:
+        """
+        Route for handling Yandex OAuth callback.
+
+        Methods: POST, GET
+
+        Request parameters:
+        - token (POST, JSON): The OAuth token
+        - token (GET, query parameter): The OAuth token
+        - code (GET, query parameter): The authorization code from Yandex
+        Returns:
+        200: JSON containing authentication token
+        503: If there's an OAuth or user data retrieval error
+        """
         logger.info("Received Yandex OAuth callback request")
         device_fingerprint = get_device_fingerprint(request)
         if request.method == 'POST':
@@ -121,7 +156,15 @@ def register_routes(router: APIRouter):
 
     @auth_router.get("/auth/yandex/by_code")
     async def auth_yandex_by_code() -> dict:
-        """Route for generating Yandex OAuth authorization URI."""
+        """
+        Route for generating Yandex OAuth authorization URI.
+
+        Method: GET
+
+        Returns:
+        200: JSON containing the iframe URI
+        """
+
         logger.info("Yandex OAuth by code called")
         iframe_uri = get_yandex_uri()
         return {'iframe_uri': iframe_uri}
@@ -130,7 +173,18 @@ def register_routes(router: APIRouter):
     async def verify(
             verification: TokenVerification = Depends(token_required)
     ) -> dict:
-        """Route for verifying an authentication token."""
+        """
+        Route for verifying an authentication token.
+
+        Method: POST
+
+        Headers:
+        - Authorization: Bearer <token>
+
+        Returns:
+        200: JSON containing verification status
+        401: For invalid or expired tokens
+        """
         logger.info("Verify route called")
         return verification.dict()
 
@@ -138,7 +192,22 @@ def register_routes(router: APIRouter):
     async def logout(
             verification: TokenVerification = Depends(token_required)
     ) -> dict:
-        """Route for logging out a user and invalidating the token."""
+        """
+        Route for logging out a user and invalidating the token.
+
+        Method: POST
+
+        Headers:
+        - Authorization: Bearer <token>
+
+        Returns:
+        200: {'success': True, 'message': <message>}
+        """
+        # Till @token_required(notify_on_failure=True) be implemented,
+        # by now it not be executed. @token_required on not authenticated raises exception 401
+        # if not verification:  # if verification returned None or failed
+        #     return {'success': False, 'message': 'Invalid or expired token'}, 401
+
         logger.info("Logout route called")
         try:
             token = verification.access_token
@@ -156,7 +225,32 @@ def register_routes(router: APIRouter):
             verification: TokenVerification = Depends(token_required),
             db: Session = Depends(get_db_session)
     ) -> Response:
-        """Route for creating a new user (admin only)."""
+        """
+        Route for creating a new user (admin only).
+
+        Method: POST
+
+        Headers:
+        - Authorization: Bearer <admin_token>
+
+        Request body (JSON):
+        {
+            "login": "<login>",
+            "first_name": "<first_name>",
+            "last_name": "<last_name>",
+            "password": "<password>",
+            "is_admin": <true/false>
+            "source": "<manual>",
+            "oa_id" : "<null>"
+        }
+
+        Returns:
+        201: {'success': True}
+        400: If input data is invalid
+        403: If user is not an admin
+        409: If user already exists
+        500: If there's an error creating the user
+        """
         logger.info("Create user route called")
 
         if not verification.is_admin:
@@ -183,7 +277,19 @@ def register_routes(router: APIRouter):
         verification: TokenVerification = Depends(token_required),
         db: Session = Depends(get_db_session)
     ) -> List[UserResponseSchema]:
-        """Route for retrieving the list of users (admin only)."""
+        """
+        Route for retrieving the list of users (admin only).
+
+        Method: GET
+
+        Headers:
+        - Authorization: Bearer <admin_token>
+
+        Returns:
+        200: JSON containing the list of users
+        403: If user is not an admin
+        500: If there's an error retrieving the list
+        """
         logger.info("Fetching list of users")
         if not verification.is_admin:
             logger.warning("is_admin is False")
