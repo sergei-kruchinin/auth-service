@@ -116,6 +116,15 @@ flask_auth_service/
 │       ├── auth.py
 │       ├── dependencies.py
 │       └── front_emu.py
+├── fastapi_app/
+│   ├── __init__.py
+│   ├── app.py
+│   ├── error_handlers.py
+│   └── routes/
+│       ├── __init__.py
+│       ├── auth.py
+│       ├── dependencies.py
+│       └── front_emu.py
 ├── templates/
 │   ├── auth_yandex.html
 │   └── yandex_callback.html
