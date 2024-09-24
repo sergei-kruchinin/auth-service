@@ -1,16 +1,17 @@
 # flask_app > routes > auth.py
+import requests
+from flask import Blueprint, make_response, Response
+from pydantic import ValidationError
+import logging
+from sqlalchemy.orm import Session
+
 from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification
 from core.models.user import *
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType
-from sqlalchemy.orm import Session
 
-import requests
-from flask import Blueprint, make_response, Response
-from pydantic import ValidationError
-import logging
 
 logger = logging.getLogger(__name__)
 

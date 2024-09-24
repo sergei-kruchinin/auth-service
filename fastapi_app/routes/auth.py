@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from typing import List
 import logging
-import requests  # to refactor
+import httpx
 from pydantic import ValidationError
 from fastapi.responses import JSONResponse
 
@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, UserResponseSchema
 from core.models.user import User
 from fastapi_app.routes.dependencies import get_db_session, token_required, get_device_fingerprint, get_yandex_uri
-from core.yandex_oauth import YandexOAuthService
+from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenService
 
@@ -122,22 +122,22 @@ def register_routes(router: APIRouter):
 
             if access_token is None and auth_code is not None:
                 try:
-                    access_token = YandexOAuthService.get_token_from_code(auth_code)
-                except requests.exceptions.RequestException as e:  # to refactor
+                    access_token = await YandexOAuthService.get_token_from_code(auth_code)
+                except OAuthTokenRetrievalError as e:
                     logger.error(f'Yandex OAuth error: {str(e)}')
-                    raise OAuthTokenRetrievalError(f'Yandex OAuth error')
+                    raise
 
         if access_token is None:
             logger.error('access_token is None: Token or authorization code is missing')
             raise OAuthServerError('Token or authorization code is missing')
 
         try:
-            yandex_user_info = YandexOAuthService.get_user_info(access_token)
+            yandex_user_info = await YandexOAuthService.get_user_info(access_token)
             logger.info("Successfully retrieved user info from Yandex")
-        except requests.exceptions.RequestException as e:  # to refactor
+        except OAuthUserDataRetrievalError as e:  # to refactor
             logger.error(f'Unable to retrieve user data: {str(e)}')
-            raise OAuthUserDataRetrievalError(f'Unable to retrieve user data: {str(e)}') from e
-        except ValidationError as e:
+            raise
+        except CustomValidationError as e:
             logger.error(f"Invalid user data received from Yandex: {str(e)}")
             raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
 

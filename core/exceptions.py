@@ -68,3 +68,4 @@ class OAuthTokenRetrievalError(OAuthServerError):
 
 class OAuthUserDataRetrievalError(OAuthServerError):
     pass
+
