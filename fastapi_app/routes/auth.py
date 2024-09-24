@@ -19,13 +19,13 @@ from core.token_service import TokenType, TokenService
 logger = logging.getLogger(__name__)
 
 
-def create_auth_response(authentication: AuthTokens, response: Response):
+def create_auth_response(authentication: AuthTokens, status_code: int) -> Response:
     """
     Create JSON response with the access token and set the refresh token in HTTP-only cookie.
 
     Args:
         authentication (AuthTokens): The authentication response containing tokens.
-        response: FastAPI response object
+        status_code (int)
 
     Returns:
         Response: FastAPI response object with access token in JSON and refresh token in cookie.
@@ -36,8 +36,8 @@ def create_auth_response(authentication: AuthTokens, response: Response):
     refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
     # Convert access token from TokenData to TokenDataResponse
-    access_token_response = access_token.to_response().dict()
-
+    response_data = access_token.to_response().dict()
+    response=JSONResponse(content=response_data, status_code=200)
     # Set the refresh token in HTTP-only cookie
     response.set_cookie(
         'refresh_token',
@@ -47,7 +47,8 @@ def create_auth_response(authentication: AuthTokens, response: Response):
         samesite='lax'  # Can be adjusted depending on your needs (Strict/Lax/None)
     )
     logger.info("Auth response created")
-    return access_token_response
+
+    return response
 
 
 def register_routes(router: APIRouter):
@@ -89,8 +90,7 @@ def register_routes(router: APIRouter):
 
         logger.info("User authenticated successfully")
 
-        response = Response(status_code=200)
-        return create_auth_response(authentication, response)
+        return create_auth_response(authentication, status_code=200)
 
     @auth_router.post("/auth/yandex/callback")
     @auth_router.get("/auth/yandex/callback")
@@ -151,8 +151,7 @@ def register_routes(router: APIRouter):
 
         logger.info("Yandex user authenticated successfully")
 
-        response = Response(status_code=200)
-        return create_auth_response(authentication, response)
+        return create_auth_response(authentication, status_code=200)
 
     @auth_router.get("/auth/yandex/by_code")
     async def auth_yandex_by_code() -> dict:

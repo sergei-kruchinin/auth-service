@@ -105,6 +105,7 @@ flask_auth_service/
 │   ├── password_hash.py
 │   ├── exceptions.py
 │   ├── yandex_oauth.py
+│   ├── yandex_oauth_async.py
 │   └── schemas.py
 ├── flask_app/
 │   ├── __init__.py
