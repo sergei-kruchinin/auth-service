@@ -1,15 +1,15 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, HTTPException, status, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 from typing import List
 import logging
-import httpx
 from pydantic import ValidationError
 from fastapi.responses import JSONResponse
 
 
-from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, UserResponseSchema
+from core.schemas import (AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, UserResponseSchema,
+                          SimpleResponseStatus, TokenDataResponse, IframeUrlResponse)
 from core.models.user import User
 from fastapi_app.routes.dependencies import get_db_session, token_required, get_device_fingerprint, get_yandex_uri
 from core.yandex_oauth_async import YandexOAuthService
@@ -19,13 +19,12 @@ from core.token_service import TokenType, TokenService
 logger = logging.getLogger(__name__)
 
 
-def create_auth_response(authentication: AuthTokens, status_code: int) -> Response:
+def create_auth_response(authentication: AuthTokens) -> Response:
     """
     Create JSON response with the access token and set the refresh token in HTTP-only cookie.
 
     Args:
         authentication (AuthTokens): The authentication response containing tokens.
-        status_code (int)
 
     Returns:
         Response: FastAPI response object with access token in JSON and refresh token in cookie.
@@ -37,7 +36,7 @@ def create_auth_response(authentication: AuthTokens, status_code: int) -> Respon
 
     # Convert access token from TokenData to TokenDataResponse
     response_data = access_token.to_response().dict()
-    response=JSONResponse(content=response_data, status_code=200)
+    response = JSONResponse(content=response_data, status_code=200)
     # Set the refresh token in HTTP-only cookie
     response.set_cookie(
         'refresh_token',
@@ -90,10 +89,10 @@ def register_routes(router: APIRouter):
 
         logger.info("User authenticated successfully")
 
-        return create_auth_response(authentication, status_code=200)
+        return create_auth_response(authentication)
 
-    @auth_router.post("/auth/yandex/callback")
-    @auth_router.get("/auth/yandex/callback")
+    @auth_router.post("/auth/yandex/callback", response_model=TokenDataResponse)
+    @auth_router.get("/auth/yandex/callback", response_model=TokenDataResponse)
     async def auth_yandex_callback(
             request: Request,
             db: Session = Depends(get_db_session)
@@ -151,10 +150,10 @@ def register_routes(router: APIRouter):
 
         logger.info("Yandex user authenticated successfully")
 
-        return create_auth_response(authentication, status_code=200)
+        return create_auth_response(authentication)
 
-    @auth_router.get("/auth/yandex/by_code")
-    async def auth_yandex_by_code() -> dict:
+    @auth_router.get("/auth/yandex/by_code", response_model=IframeUrlResponse)
+    async def auth_yandex_by_code() -> Response:
         """
         Route for generating Yandex OAuth authorization URI.
 
@@ -165,13 +164,14 @@ def register_routes(router: APIRouter):
         """
 
         logger.info("Yandex OAuth by code called")
-        iframe_uri = get_yandex_uri()
-        return {'iframe_uri': iframe_uri}
+        response_data = IframeUrlResponse(iframe_uri=get_yandex_uri())
+        response = JSONResponse(response_data, status_code=200)
+        return response
 
-    @auth_router.post("/verify")
+    @auth_router.post("/verify", response_model=TokenVerification)
     async def verify(
             verification: TokenVerification = Depends(token_required)
-    ) -> dict:
+    ) -> Response:
         """
         Route for verifying an authentication token.
 
@@ -184,13 +184,20 @@ def register_routes(router: APIRouter):
         200: JSON containing verification status
         401: For invalid or expired tokens
         """
-        logger.info("Verify route called")
-        return verification.dict()
+        logger.info(f"Verify route called: {verification}")
+        response_data=verification.dict()
+        logger.info(f"Converting to dict: {response_data}")
 
-    @auth_router.post("/logout")
+        response = JSONResponse(response_data, status_code=200)
+
+        logger.info("Verify response created")
+
+        return response
+
+    @auth_router.post("/logout", response_model=SimpleResponseStatus)
     async def logout(
             verification: TokenVerification = Depends(token_required)
-    ) -> dict:
+    ) -> Response:
         """
         Route for logging out a user and invalidating the token.
 
@@ -215,8 +222,9 @@ def register_routes(router: APIRouter):
             status = True
         except DatabaseError as e:
             raise DatabaseError('Error checking if token is blacklisted') from e
-
-        return {'success': status, 'message': message}
+        response_data = SimpleResponseStatus(success=status, message=message).dict()
+        response = JSONResponse(content=response_data, status_code=200)
+        return response
 
     @auth_router.post("/users")
     async def users_create(

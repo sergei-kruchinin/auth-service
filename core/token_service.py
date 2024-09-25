@@ -171,7 +171,8 @@ class TokenService:
                 logger.warning("Device fingerprint does not match")
                 raise TokenInvalid("Device fingerprint does not match")
             logger.info("Token successfully verified")
-            token_verification = TokenVerification(access_token=token, **token_payload.dict())
+            # token_verification = TokenVerification(access_token=token, **token_payload.dict())
+            token_verification=token_payload.to_response(access_token=token)
             return token_verification
         except jwt.ExpiredSignatureError:
             logger.warning("Token expired")

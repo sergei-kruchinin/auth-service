@@ -6,8 +6,21 @@ from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 from typing import Dict, Any
 
 
-# === Token Models ===
+# === Response Models
 
+class ResponseBase(BaseModel):
+    success: bool | None = Field (default=None, description="Response Status: True of False. None is error")
+
+
+class SimpleResponseStatus(ResponseBase):
+    message: str = Field (..., description="Status description")
+
+
+class IframeUrlResponse(BaseModel):
+    iframe_url: str = Field(..., description="Iframe URL for OAuth")
+
+
+# === Token Models ===
 class TokenPayload(BaseModel):
     id: int = Field(..., description="User id in our database")
     login: str = Field(..., description="Login of user, incl. composite login <oa:id>")
@@ -17,6 +30,18 @@ class TokenPayload(BaseModel):
     device_fingerprint: str = Field(default=None, description="Device/browser fingerprint: <useragent:lang>")
     exp: datetime = Field(default=None, description="The value will be set by token generation")
 
+    def to_response(self, access_token: str) -> 'TokenVerification':
+        return TokenVerification(
+            id=self.id,
+            login=self.login,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            is_admin=self.is_admin,
+            device_fingerprint=self.device_fingerprint,
+            exp=self.exp.isoformat(),
+            access_token=access_token,
+            success=True
+        )
 
 class TokenValue(BaseModel):
     value: constr(min_length=95) = Field(..., description="JWT токен")
@@ -29,13 +54,13 @@ class AccessTokenResponseValue(BaseModel):
 class TokenData(TokenValue):
     expires_in: int
 
-    def to_response(self):
+    def to_response(self) -> 'TokenDataResponse':
         """
         Converts TokenData to TokenDataResponse.
         """
         return TokenDataResponse(
             access_token=self.value,
-            expires_in=self.expires_in
+            expires_in=self.expires_in,
         )
 
 
@@ -43,8 +68,8 @@ class TokenDataResponse(AccessTokenResponseValue):
     expires_in: int
 
 
-class TokenVerification(TokenPayload, AccessTokenResponseValue):
-    success: bool = True
+class TokenVerification(TokenPayload, AccessTokenResponseValue, ResponseBase):
+    exp: str
 
 
 class AuthTokens(BaseModel):
