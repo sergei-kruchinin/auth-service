@@ -73,13 +73,10 @@ def register_routes(router: APIRouter):
         400: If no data is provided
         401: For invalid login/password
         """
-        print(auth_request)
         logger.info("Auth route called")
         try:
             device_fingerprint = get_device_fingerprint(request)
-            print(1)
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            print("auth_request_fingerprinted",auth_request_fingerprinted)
             authentication = User.authenticate(db, auth_request_fingerprinted)
         except ValidationError as e:
             raise InsufficientData('login or password not specified') from e
