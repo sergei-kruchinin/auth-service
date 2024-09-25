@@ -76,7 +76,7 @@ def register_routes(bp: Blueprint):
                 raise NoDataProvided('No input data provided')
             device_fingerprint = get_device_fingerprint()
             json_data["device_fingerprint"] = device_fingerprint
-            auth_request = AuthRequest(**json_data)
+            auth_request = AuthRequestFingerPrinted(**json_data)
             authentication = User.authenticate(db, auth_request)
 
         except ValidationError as e:

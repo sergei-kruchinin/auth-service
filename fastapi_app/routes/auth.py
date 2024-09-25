@@ -55,6 +55,7 @@ def register_routes(router: APIRouter):
 
     @auth_router.post("/auth", response_model=TokenDataResponse)
     async def auth(
+            auth_request: AuthRequest,
             request: Request,
             db: Session = Depends(get_db_session)
     ) -> Response:
@@ -72,16 +73,14 @@ def register_routes(router: APIRouter):
         400: If no data is provided
         401: For invalid login/password
         """
-
+        print(auth_request)
         logger.info("Auth route called")
         try:
-            json_data = await request.json()
-            if not json_data:
-                raise NoDataProvided('No input data provided')
             device_fingerprint = get_device_fingerprint(request)
-            json_data["device_fingerprint"] = device_fingerprint
-            auth_request = AuthRequest(**json_data)
-            authentication = User.authenticate(db, auth_request)
+            print(1)
+            auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
+            print("auth_request_fingerprinted",auth_request_fingerprinted)
+            authentication = User.authenticate(db, auth_request_fingerprinted)
         except ValidationError as e:
             raise InsufficientData('login or password not specified') from e
         except AuthenticationError as e:

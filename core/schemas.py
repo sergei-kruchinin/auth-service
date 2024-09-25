@@ -9,7 +9,7 @@ from typing import Dict, Any
 # === Response Models
 
 class ResponseBase(BaseModel):
-    success: bool | None = Field (default=None, description="Response Status: True of False. None is error")
+    success: bool | None = Field(default=None, description="Response Status: True of False. None is error")
 
 
 class SimpleResponseStatus(ResponseBase):
@@ -84,9 +84,23 @@ class AuthRequest(BaseModel):
     password: constr(min_length=8, strip_whitespace=True) = Field(
         ..., description="The plaintext password of the user"
     )
+
+    def to_fingerprinted(self, fingerprint: str) -> 'AuthRequestFingerPrinted':
+        return AuthRequestFingerPrinted(
+            login=self.login,
+            password=self.password,
+            device_fingerprint=fingerprint)
+
+
+class AuthRequestFingerPrinted(AuthRequest):
+    login: constr(min_length=3, strip_whitespace=True) = Field(
+        ..., description="The login of the user"
+    )
+    password: constr(min_length=8, strip_whitespace=True) = Field(
+        ..., description="The plaintext password of the user"
+    )
     device_fingerprint: str = Field(
         ..., description="The fingerprint of the user's device")
-
 
 # === User Models ===
 

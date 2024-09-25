@@ -274,12 +274,12 @@ class User(Base):
         return AuthTokens(tokens=tokens)
 
     @classmethod
-    def authenticate(cls, db: Session, auth_request: AuthRequest) -> AuthTokens:
+    def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
         """
         Authenticate user with login and password.
 
         Args:
-            auth_request (AuthRequest): The login and plaintext password of the user.
+            auth_request (AuthRequestFingerPrinted): The login and plaintext password of the user.
             db (Session): Session
         Returns:
             AuthTokens: The generated access and refresh tokens and their expiration times.
