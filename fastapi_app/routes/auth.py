@@ -53,7 +53,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
 
-    @auth_router.post("/auth")
+    @auth_router.post("/auth", response_model=TokenDataResponse)
     async def auth(
             request: Request,
             db: Session = Depends(get_db_session)
@@ -226,9 +226,9 @@ def register_routes(router: APIRouter):
         response = JSONResponse(content=response_data, status_code=200)
         return response
 
-    @auth_router.post("/users")
+    @auth_router.post("/users", response_model=SimpleResponseStatus)
     async def users_create(
-            json_data: ManualUserCreateSchema,
+            user_to_create: ManualUserCreateSchema,
             verification: TokenVerification = Depends(token_required),
             db: Session = Depends(get_db_session)
     ) -> Response:
@@ -265,18 +265,19 @@ def register_routes(router: APIRouter):
             raise AdminRequiredError("Access Denied")
 
         try:
-            User.create_with_check(db, json_data)
+            user = User.create_with_check(db, user_to_create)
         except UserAlreadyExistsError as e:
             logger.warning(f"User with login already exists: {str(e)}")
             raise
         except DatabaseError as e:
-            logger.error(f"There was an error while creating a user: {str(e)}")
-            raise DatabaseError(f"There was an error while creating a user") from e
+            logger.error(f"There was an error while creating a user {user_to_create.login}: {str(e)}")
+            raise DatabaseError(f"There was an error while creating a user ") from e
 
+        response_data = SimpleResponseStatus(success=True, message=f'User {user.login} created').dict()
         logger.info("User created successfully")
         return JSONResponse(
             status_code=201,
-            content={'success': True, 'message': 'User created'}
+            content=response_data
         )
 
     @auth_router.get("/users", response_model=List[UserResponseSchema])

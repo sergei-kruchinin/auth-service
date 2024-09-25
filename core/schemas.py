@@ -43,6 +43,7 @@ class TokenPayload(BaseModel):
             success=True
         )
 
+
 class TokenValue(BaseModel):
     value: constr(min_length=95) = Field(..., description="JWT токен")
 
