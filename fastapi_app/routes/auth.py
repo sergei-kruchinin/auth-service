@@ -1,17 +1,17 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 from typing import List
 import logging
-from pydantic import ValidationError
 from fastapi.responses import JSONResponse
 
 
 from core.schemas import *
 from core.schemas_exceptions import *
 from core.models.user import User
-from fastapi_app.routes.dependencies import get_db_session, token_required, get_device_fingerprint, get_yandex_uri
+from fastapi_app.routes.dependencies import (get_db_session, token_required, get_device_fingerprint,
+                                             get_yandex_uri )
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenService
@@ -56,7 +56,8 @@ def register_routes(router: APIRouter):
     @auth_router.post("/auth", response_model=TokenDataResponse, responses={
         401: {"model": ResponseAuthenticationError},
         400: {"model": InsufficientAuthDataError}
-    })
+        }
+    )
     async def auth(
             auth_request: AuthRequest,
             request: Request,
@@ -81,8 +82,8 @@ def register_routes(router: APIRouter):
             device_fingerprint = get_device_fingerprint(request)
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
             authentication = User.authenticate(db, auth_request_fingerprinted)
-        except ValidationError as e:
-            raise InsufficientAuthData('login or password not specified') from e
+        # except ValidationError as e:
+        #     raise InsufficientAuthData('login or password not specified') from e
         except AuthenticationError as e:
             raise AuthenticationError('Invalid login or password') from e
 
@@ -135,9 +136,9 @@ def register_routes(router: APIRouter):
         except OAuthUserDataRetrievalError as e:  # to refactor
             logger.error(f'Unable to retrieve user data: {str(e)}')
             raise
-        except CustomValidationError as e:
-            logger.error(f"Invalid user data received from Yandex: {str(e)}")
-            raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
+        # except CustomValidationError as e:
+        #    logger.error(f"Invalid user data received from Yandex: {str(e)}")
+        #    raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
 
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)

@@ -4,13 +4,34 @@ from fastapi.responses import JSONResponse
 from requests.exceptions import SSLError, ConnectionError
 from pydantic import ValidationError
 import logging
-
+from fastapi.exceptions import RequestValidationError  #  for 422
 from core.exceptions import *
 from core.schemas_exceptions import *
+
 logger = logging.getLogger(__name__)
 
 
+
+
 def register_error_handlers(app: FastAPI):
+    @app.exception_handler(RequestValidationError)
+
+    # maybe to delete
+    async def custom_request_validation_exception_handler(request: Request, exc: RequestValidationError):
+        request_info = {
+            "method": request.method,
+            "url": str(request.url),
+            #  "headers": dict(request.headers),
+            #  "query_params": dict(request.query_params),
+        }
+        if str(request.url.path) == "/auth":
+            raise InsufficientAuthData(exc)
+
+        return JSONResponse(
+            status_code=422,
+            content={"success": False, "message": "422 Custom validation error message", "details": exc.errors(), "request": request_info}
+        )
+
     @app.exception_handler(400)
     async def bad_request(request: Request, exc: Exception):
         logger.error(f"400 Bad Request: Invalid JSON sent: {str(exc)}")
@@ -90,12 +111,11 @@ def register_error_handlers(app: FastAPI):
         error_response = ResponseAuthenticationError(message=f"Authentication Error: {str(exc)}")
         return JSONResponse(status_code=401, content=error_response.dict())
 
-
     @app.exception_handler(InsufficientAuthData)
-    async def handle_auth_error(request: Request, exc: InsufficientAuthData):
+    async def handle_insufficient_error(request: Request, exc: InsufficientAuthData):
         logger.warning(f"InsufficientAuthDataError: {str(exc)}")
-        error_response = InsufficientAuthDataError(message="  InsufficientAuthDataError: {str(exc)}")
-        return JSONResponse(status_code=401, content=error_response.dict())
+        error_response = InsufficientAuthDataError(message=f"InsufficientAuthDataError: {str(exc)}")
+        return JSONResponse(status_code=400, content=error_response.dict())
 
     @app.exception_handler(CustomValidationError)
     async def handle_validation_error(request: Request, exc: CustomValidationError):
