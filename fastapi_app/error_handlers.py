@@ -87,8 +87,15 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(AuthenticationError)
     async def handle_auth_error(request: Request, exc: AuthenticationError):
         logger.warning(f"Authentication Error: {str(exc)}")
-        error_response = ResponseAuthenticationError()
-        return JSONResponse(error_response.dict())
+        error_response = ResponseAuthenticationError(message=f"Authentication Error: {str(exc)}")
+        return JSONResponse(status_code=401, content=error_response.dict())
+
+
+    @app.exception_handler(InsufficientAuthData)
+    async def handle_auth_error(request: Request, exc: InsufficientAuthData):
+        logger.warning(f"InsufficientAuthDataError: {str(exc)}")
+        error_response = InsufficientAuthDataError(message="  InsufficientAuthDataError: {str(exc)}")
+        return JSONResponse(status_code=401, content=error_response.dict())
 
     @app.exception_handler(CustomValidationError)
     async def handle_validation_error(request: Request, exc: CustomValidationError):

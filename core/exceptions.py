@@ -53,7 +53,7 @@ class NoDataProvided(Exception):
     pass
 
 
-class InsufficientData(AuthenticationError):
+class InsufficientAuthData(AuthenticationError):
     """Raised when there is insufficient data (login or password missing)."""
     pass
 

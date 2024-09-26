@@ -80,7 +80,7 @@ def register_routes(bp: Blueprint):
             authentication = User.authenticate(db, auth_request)
 
         except ValidationError as e:
-            raise InsufficientData('login or password not specified') from e
+            raise InsufficientAuthData('login or password not specified') from e
         except AuthenticationError as e:
             raise AuthenticationError('Invalid login or password') from e
 
@@ -268,7 +268,7 @@ def register_routes(bp: Blueprint):
             user_data = ManualUserCreateSchema(**json_data) # not correct schema
         except ValidationError as e:
             logger.warning(f"Not Correct ManualUserCreateSchema for manual user: {str(e)}")
-            raise InsufficientData(f"Invalid login format") from e
+            raise InsufficientAuthData(f"Invalid login format") from e
 
         try:
             User.create_with_check(db, user_data)

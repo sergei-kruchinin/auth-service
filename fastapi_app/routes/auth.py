@@ -54,7 +54,8 @@ def register_routes(router: APIRouter):
     auth_router = APIRouter()
 
     @auth_router.post("/auth", response_model=TokenDataResponse, responses={
-        401: {"model": ResponseAuthenticationError}
+        401: {"model": ResponseAuthenticationError},
+        400: {"model": InsufficientAuthDataError}
     })
     async def auth(
             auth_request: AuthRequest,
@@ -81,7 +82,7 @@ def register_routes(router: APIRouter):
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
             authentication = User.authenticate(db, auth_request_fingerprinted)
         except ValidationError as e:
-            raise InsufficientData('login or password not specified') from e
+            raise InsufficientAuthData('login or password not specified') from e
         except AuthenticationError as e:
             raise AuthenticationError('Invalid login or password') from e
 

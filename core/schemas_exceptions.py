@@ -7,3 +7,7 @@ from .schemas import SimpleErrorResponseStatus
 
 class ResponseAuthenticationError(SimpleErrorResponseStatus):
     message: str = 'Invalid login or password'
+
+
+class InsufficientAuthDataError(SimpleErrorResponseStatus):
+    message: str = 'No login or password specified'
