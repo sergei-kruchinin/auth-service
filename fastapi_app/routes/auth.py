@@ -1,6 +1,6 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import logging
@@ -8,8 +8,8 @@ from pydantic import ValidationError
 from fastapi.responses import JSONResponse
 
 
-from core.schemas import (AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, UserResponseSchema,
-                          SimpleResponseStatus, TokenDataResponse, IframeUrlResponse)
+from core.schemas import *
+from core.schemas_exceptions import *
 from core.models.user import User
 from fastapi_app.routes.dependencies import get_db_session, token_required, get_device_fingerprint, get_yandex_uri
 from core.yandex_oauth_async import YandexOAuthService
@@ -53,7 +53,9 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
 
-    @auth_router.post("/auth", response_model=TokenDataResponse)
+    @auth_router.post("/auth", response_model=TokenDataResponse, responses={
+        401: {"model": ResponseAuthenticationError}
+    })
     async def auth(
             auth_request: AuthRequest,
             request: Request,

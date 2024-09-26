@@ -16,8 +16,19 @@ class SimpleResponseStatus(ResponseBase):
     message: str = Field (..., description="Status description")
 
 
-class IframeUrlResponse(BaseModel):
+class SimpleErrorResponseStatus(ResponseBase):
+    success: bool = False
+
+
+class SimpleSuccessResponseStatus(ResponseBase):
+    success: bool = True
+
+
+class IframeUrlResponse(SimpleSuccessResponseStatus):
     iframe_url: str = Field(..., description="Iframe URL for OAuth")
+
+
+
 
 
 # === Token Models ===
@@ -65,7 +76,7 @@ class TokenData(TokenValue):
         )
 
 
-class TokenDataResponse(AccessTokenResponseValue):
+class TokenDataResponse(AccessTokenResponseValue, SimpleSuccessResponseStatus):
     expires_in: int
 
 

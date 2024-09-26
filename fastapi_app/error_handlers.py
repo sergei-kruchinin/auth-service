@@ -1,11 +1,12 @@
 # fastapi_app > error_handlers.py
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from core.exceptions import *
 from requests.exceptions import SSLError, ConnectionError
 from pydantic import ValidationError
 import logging
 
+from core.exceptions import *
+from core.schemas_exceptions import *
 logger = logging.getLogger(__name__)
 
 
@@ -86,10 +87,8 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(AuthenticationError)
     async def handle_auth_error(request: Request, exc: AuthenticationError):
         logger.warning(f"Authentication Error: {str(exc)}")
-        return JSONResponse(
-            status_code=401,
-            content={'success': False, 'message': str(exc)}
-        )
+        error_response = ResponseAuthenticationError()
+        return JSONResponse(error_response.dict())
 
     @app.exception_handler(CustomValidationError)
     async def handle_validation_error(request: Request, exc: CustomValidationError):
