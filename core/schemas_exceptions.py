@@ -3,7 +3,7 @@
 from .schemas import SimpleErrorResponseStatus
 
 
-# === Exception Schemas ==
+# === Exception Schemas For FastAPI and docs ===
 
 class ResponseAuthenticationError(SimpleErrorResponseStatus):
     message: str = 'Invalid login or password'
