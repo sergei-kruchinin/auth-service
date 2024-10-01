@@ -3,7 +3,7 @@
 
 from datetime import datetime
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 # === Response Models
@@ -244,6 +244,10 @@ class UserResponseSchema(UserBaseSchema):
     # created_at: str
     # updated_at: str | None = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class UsersResponseSchema(SimpleSuccessResponseStatus):
+    users: List[UserResponseSchema]
 
 
 # === Yandex User Info ===

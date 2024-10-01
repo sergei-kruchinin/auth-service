@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
-from typing import List
 import logging
 from fastapi.responses import JSONResponse
 
@@ -11,7 +10,7 @@ from core.schemas import *
 from core.schemas_exceptions import *
 from core.models.user import User
 from fastapi_app.routes.dependencies import (get_db_session, token_required, get_device_fingerprint,
-                                             get_yandex_uri )
+                                             get_yandex_uri)
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenService
@@ -280,11 +279,11 @@ def register_routes(router: APIRouter):
             content=response_data
         )
 
-    @auth_router.get("/users", response_model=List[UserResponseSchema])
+    @auth_router.get("/users", response_model=UsersResponseSchema)
     async def users_list(
-        verification: TokenVerification = Depends(token_required),
-        db: Session = Depends(get_db_session)
-    ) -> List[UserResponseSchema]:
+            verification: TokenVerification = Depends(token_required),
+            db: Session = Depends(get_db_session)
+    ) -> UsersResponseSchema:
         """
         Route for retrieving the list of users (admin only).
 
@@ -303,14 +302,14 @@ def register_routes(router: APIRouter):
             logger.warning("is_admin is False")
             raise AdminRequiredError('Access Denied')
         try:
-            users_list_data = User.list(db)
+            users_list_data = User.list(db)  # Retrieve user data from the database
             users_list_json = users_list_data.get('users', [])
             users_list = [UserResponseSchema(**user) for user in
-                          users_list_json]  # Convert to list of objects UserResponseSchema
+                          users_list_json]  # Convert to list of UserResponseSchema objects
             logger.info("Users list retrieved successfully")
-            return users_list
-        except DatabaseError as e:
-            logger.error(f"There was an error while retrieving the users list. DatabaseError: {e}")
+            return UsersResponseSchema(users=users_list)
+        except Exception as e:
+            logger.error(f"There was an error while retrieving the users list. Error: {e}")
             raise DatabaseError(f"There was an error while retrieving the users list.") from e
 
     router.include_router(auth_router, prefix="")
