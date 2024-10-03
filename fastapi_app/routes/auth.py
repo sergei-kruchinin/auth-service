@@ -91,7 +91,9 @@ def register_routes(router: APIRouter):
         return create_auth_response(authentication)
 
     @auth_router.post("/auth/yandex/callback", response_model=TokenDataResponse)
-    @auth_router.get("/auth/yandex/callback", response_model=TokenDataResponse)
+    @auth_router.get("/auth/yandex/callback", response_model=TokenDataResponse, responses={
+        503: {"model": OAuthServerErrorSchema}
+        })
     async def auth_yandex_callback(
             request: Request,
             db: Session = Depends(get_db_session)

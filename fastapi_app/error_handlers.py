@@ -159,8 +159,9 @@ def register_error_handlers(app: FastAPI):
 
     @app.exception_handler(OAuthServerError)
     async def oauth_server_error_occurred(request: Request, exc: OAuthServerError):
-        logger.error(f"OAuth Server Error: {str(exc)}")
+        logger.error(f"Ya OAuth Server Error: {str(exc)}")
+        error_response = OAuthServerErrorSchema(message=f"OAuth Server Error: {str(exc)}")
         return JSONResponse(
-            status_code=503,
-            content={'success': False, 'error': str(exc)}
+            status_code=504,
+            content=error_response.dict()
         )

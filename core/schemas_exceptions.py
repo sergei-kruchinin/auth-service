@@ -11,3 +11,7 @@ class ResponseAuthenticationError(SimpleErrorResponseStatus):
 
 class InsufficientAuthDataError(SimpleErrorResponseStatus):
     message: str = 'No login or password specified'
+
+
+class OAuthServerErrorSchema(SimpleErrorResponseStatus):
+    message: str = 'OAuth Server Error'
