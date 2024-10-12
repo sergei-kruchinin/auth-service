@@ -157,7 +157,7 @@ Environment variables are used to configure the service. Key variables include:
 
 1. **Login**: Authenticate a user with login and password.
     ```sh
-    POST /auth
+    POST /token/json
     {
         "username": "user_login",
         "password": "user_password"
