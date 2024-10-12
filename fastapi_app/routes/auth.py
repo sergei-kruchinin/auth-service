@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer  # for Swagger
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from core.schemas import *
 from core.schemas_exceptions import *
@@ -52,7 +52,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
 
-    @auth_router.post("/auth", response_model=TokenDataResponse, responses={
+    @auth_router.post("/token", response_model=TokenDataResponse, responses={
         401: {"model": ResponseAuthenticationError},
         400: {"model": InsufficientAuthDataError}
         }
