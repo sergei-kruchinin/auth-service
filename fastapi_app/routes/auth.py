@@ -186,7 +186,7 @@ def register_routes(router: APIRouter):
         401: For invalid or expired tokens
         """
         logger.info(f"Verify route called: {verification}")
-        response_data=verification.dict()
+        response_data = verification.dict()
         logger.info(f"Converting to dict: {response_data}")
 
         response = JSONResponse(response_data, status_code=200)

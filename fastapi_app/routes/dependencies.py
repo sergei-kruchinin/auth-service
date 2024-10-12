@@ -7,11 +7,6 @@ from core.token_service import TokenService
 import os
 from core.models import get_db
 from core.exceptions import *
-from fastapi.exceptions import RequestValidationError  # ###
-from functools import wraps
-
-from fastapi.responses import JSONResponse
-
 
 logger = logging.getLogger(__name__)
 
