@@ -178,7 +178,7 @@ Environment variables are used to configure the service. Key variables include:
     
     to get a html page with link to yandex oauth page with your yandex client id (YOUR_YANDEX_ID).
     After granting authentication on yandex page it will redirect you to page 
-    `/auth/yandex/callback?code=your_auth_code`
+    `/auth/token/yandex/callback?code=your_auth_code`
     which gives you auth token. If it's the first authorization user will be crated automatically.
 
 ### User Management
