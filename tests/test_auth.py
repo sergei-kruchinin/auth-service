@@ -39,7 +39,7 @@ def setup_database():
 
 @pytest.fixture(scope="module")
 def get_admin_token():
-    url = f"{BASE_URL}/token/json"
+    url = f"{BASE_URL}/auth/token/json"
     payload = {
         "username": "admin",
         "password": "password"
@@ -52,7 +52,7 @@ def get_admin_token():
 
 
 def test_create_user(get_admin_token):
-    url = f"{BASE_URL}/users"
+    url = f"{BASE_URL}/auth/_users"
     payload = {
         "username": "testuser",
         "first_name": "Test",
@@ -75,7 +75,7 @@ def test_create_user(get_admin_token):
 
 @pytest.fixture
 def get_user_token():
-    url = f"{BASE_URL}/token/json"
+    url = f"{BASE_URL}/auth/token/json"
     payload = {
         "username": "testuser",
         "password": "password"
@@ -93,7 +93,7 @@ def test_authenticate_user(get_user_token):
 
 
 def test_verify_token(get_user_token):
-    url = f"{BASE_URL}/verify"
+    url = f"{BASE_URL}/auth/verify"
     headers = {
         "Authorization": f"Bearer {get_user_token}"  # Using token, got in get_user_token
     }
@@ -105,7 +105,7 @@ def test_verify_token(get_user_token):
 
 
 def test_logout(get_user_token):
-    url = f"{BASE_URL}/logout"
+    url = f"{BASE_URL}/auth/logout"
     headers = {
         "Authorization": f"Bearer {get_user_token}"  # Using token, got in get_user_token
     }
@@ -116,7 +116,7 @@ def test_logout(get_user_token):
 
 
 def test_get_users(get_admin_token):
-    url = f"{BASE_URL}/users"
+    url = f"{BASE_URL}/auth/_users"
     headers = {
         "Authorization": f"Bearer {get_admin_token}"  # Using admin token
     }

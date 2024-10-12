@@ -40,8 +40,8 @@ It supports traditional authentication as well as OAuth authentication (e.g., Ya
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/sergei-kruchinin/flask-auth-service.git
-    cd flask-auth-service
+    git clone https://github.com/sergei-kruchinin/auth-service.git
+    cd auth-service
     ```
 
 2. Create a virtual environment and activate it:
@@ -77,18 +77,20 @@ YANDEX_SECRET=YOUR_YANDEX_CLIENT_SECRET
     python3 create_db_once.py
     ```
 
-2. Start the Flask application:
-    ```sh
-    export PYTHONPATH=.
-    python3 flask_app/app.py
-    ```
-    OR 
 
-3. Start the FastAPI application:
+2. Start the FastAPI application:
     ```sh
     export PYTHONPATH=.
     python3 fastapi_app/app.py
     ```
+    OR
+
+3. Start the Flask application:
+    ```sh
+    export PYTHONPATH=.
+    python3 flask_app/app.py
+    ```
+    
 
 ## Project Structure
 
@@ -157,7 +159,7 @@ Environment variables are used to configure the service. Key variables include:
 
 1. **Login**: Authenticate a user with login and password.
     ```sh
-    POST /token/json
+    POST /auth/token/json
     {
         "username": "user_login",
         "password": "user_password"
@@ -171,7 +173,7 @@ Environment variables are used to configure the service. Key variables include:
     to get json with iframe_uri
     or
     ```sh
-    GET /auth/yandex/by_code.html 
+    GET /login/yandex/by_code.html 
     ```
     
     to get a html page with link to yandex oauth page with your yandex client id (YOUR_YANDEX_ID).
@@ -180,10 +182,12 @@ Environment variables are used to configure the service. Key variables include:
     which gives you auth token. If it's the first authorization user will be crated automatically.
 
 ### User Management
+    
+Developer-only methods till users microservice will be created.
 
 1. **Create User**: Create a new user (admin only).
     ```sh
-    POST /users
+    POST /auth/_users
     {
         "username": "new_user_login",
         "first_name": "First",
@@ -195,32 +199,32 @@ Environment variables are used to configure the service. Key variables include:
 
 2. **List Users**: Get a list of all users (admin only).
     ```sh
-    GET /users
+    GET /auth/_users
     ```
 
 ### Token Management
 
 1. **Verify Token**: Verify a JWT token.
     ```sh
-    POST /verify
+    POST /auth/verify
     Headers: Authorization: Bearer <token>
     ```
 
 2. **Logout**: Invalidate a JWT token.
     ```sh
-    POST /logout
+    POST /auth/logout
     Headers: Authorization: Bearer <token>
     ```
 
 ## Endpoints
 
-- `POST /auth`: Authenticate user with login and password.
+- `POST /auth/token/json`: Authenticate user with login (username) and password.
 - `GET /auth/yandex/by_code`: Get the yandex oauth uri with Yandex client ID.
-- `GET /auth/yandex/callback`: Handle Yandex OAuth callback.
-- `POST /verify`: Verify JWT token.
-- `POST /logout`: Invalidate JWT token.
-- `POST /users`: Create a new user (admin).
-- `GET /users`: List all users (admin).
+- `GET /auth/token/yandex/callback`: Handle Yandex OAuth callback.
+- `POST /auth/verify`: Verify JWT token.
+- `POST /auth/logout`: Invalidate JWT token.
+- `POST /auth/_users`: Create a new user (admin).
+- `GET /auth/_users`: List all users (admin).
 
 ## Error Handling
 

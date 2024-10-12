@@ -52,7 +52,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 
 def register_routes(bp: Blueprint):
-    @bp.route("/token/json", methods=["POST"])
+    @bp.route("/auth/token/json", methods=["POST"])
     @with_db
     def auth(db: Session) -> Response:
         """
@@ -88,7 +88,7 @@ def register_routes(bp: Blueprint):
 
         return create_auth_response(authentication)
 
-    @bp.route("/auth/yandex/callback", methods=["POST", "GET"])
+    @bp.route("/auth/token/yandex/callback", methods=["POST", "GET"])
     @with_db
     def auth_yandex_callback(db: Session) -> Response:
         """
@@ -168,7 +168,7 @@ def register_routes(bp: Blueprint):
 
     # ### 2. Token Verification and Invalidation Methods ###
 
-    @bp.route("/verify", methods=["POST"])
+    @bp.route("/auth/verify", methods=["POST"])
     @token_required
     def verify(verification: TokenVerification) -> Response:
         """
@@ -187,7 +187,7 @@ def register_routes(bp: Blueprint):
         response = make_response(verification.dict(), 200)
         return response
 
-    @bp.route("/logout", methods=["POST"])
+    @bp.route("/auth/logout", methods=["POST"])
     @token_required
     def logout(verification: TokenVerification) -> Response:
         """
@@ -224,7 +224,7 @@ def register_routes(bp: Blueprint):
 
     # ### 3. User Management Methods: ###
 
-    @bp.route("/users", methods=["POST"])
+    @bp.route("/auth/_users", methods=["POST"])
     @token_required
     @with_db
     def users_create(verification: TokenVerification, db: Session) -> Response:
@@ -283,7 +283,7 @@ def register_routes(bp: Blueprint):
         response = make_response({'success': True}, 201)
         return response
 
-    @bp.route("/users", methods=["GET"])
+    @bp.route("/auth/_users", methods=["GET"])
     @token_required
     @with_db
     def users_list(verification: TokenVerification, db: Session) -> Response:

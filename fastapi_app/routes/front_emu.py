@@ -70,7 +70,7 @@ def register_routes(router: APIRouter):
 
         return templates.TemplateResponse("plain_text.html", {"request": request, "content": license_content})
 
-    @front_emu_router.get("/auth/yandex/by_code.html", response_class=HTMLResponse)
+    @front_emu_router.get("/login/yandex/by_code.html", response_class=HTMLResponse)
     async def auth_yandex_by_code_html():
         """
         Route for displaying the link to Yandex OAuth authorization page.
@@ -79,7 +79,7 @@ def register_routes(router: APIRouter):
         iframe_uri = get_yandex_uri()
         return HTMLResponse(content=f'<a href="{iframe_uri}">{iframe_uri}</a>')
 
-    @front_emu_router.get("/auth/yandex.html", response_class=HTMLResponse)
+    @front_emu_router.get("/login/yandex.html", response_class=HTMLResponse)
     async def auth_yandex_html(request: Request):
         """
         Route for displaying the Yandex OAuth authorization page.
@@ -87,8 +87,8 @@ def register_routes(router: APIRouter):
         logger.info("Yandex OAuth HTML called")
         yandex_id = os.getenv('YANDEX_ID')
         api_domain = os.getenv('API_DOMAIN')
-        redirect_uri = f"https://{api_domain}/auth/yandex/callback.html"
-        callback_uri = f"https://{api_domain}/auth/yandex/callback"
+        redirect_uri = f"https://{api_domain}/login/yandex/callback.html"
+        callback_uri = f"https://{api_domain}/auth/token/yandex/callback"
         return templates.TemplateResponse("auth_yandex.html", {
             "request": request,
             "yandex_id": yandex_id,
@@ -97,7 +97,7 @@ def register_routes(router: APIRouter):
             "callback_uri": callback_uri
         })
 
-    @front_emu_router.get("/auth/yandex/callback.html", response_class=HTMLResponse)
+    @front_emu_router.get("/login/yandex/callback.html", response_class=HTMLResponse)
     async def auth_yandex_callback_html(request: Request):
         """
         Route for handling Yandex OAuth callback and presenting a helper page.

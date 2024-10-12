@@ -126,8 +126,8 @@ def register_routes(router: APIRouter):
 
 
 
-    @auth_router.post("/auth/yandex/callback", response_model=TokenDataResponse)
-    @auth_router.get("/auth/yandex/callback", response_model=TokenDataResponse, responses={
+    @auth_router.post("/token/yandex/callback", response_model=TokenDataResponse)
+    @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
         503: {"model": OAuthServerErrorSchema}
         })
     async def auth_yandex_callback(
@@ -189,7 +189,7 @@ def register_routes(router: APIRouter):
 
         return create_auth_response(authentication)
 
-    @auth_router.get("/auth/yandex/by_code", response_model=IframeUrlResponse)
+    @auth_router.get("/yandex/by_code", response_model=IframeUrlResponse)
     async def auth_yandex_by_code() -> Response:
         """
         Route for generating Yandex OAuth authorization URI.
@@ -261,7 +261,7 @@ def register_routes(router: APIRouter):
         response = JSONResponse(content=response_data, status_code=200)
         return response
 
-    @auth_router.post("/users", response_model=SimpleResponseStatus)
+    @auth_router.post("/_users", response_model=SimpleResponseStatus)
     async def users_create(
             user_to_create: ManualUserCreateSchema,
             verification: TokenVerification = Depends(token_required),
@@ -315,7 +315,7 @@ def register_routes(router: APIRouter):
             content=response_data
         )
 
-    @auth_router.get("/users", response_model=UsersResponseSchema)
+    @auth_router.get("/_users", response_model=UsersResponseSchema)
     async def users_list(
             verification: TokenVerification = Depends(token_required),
             db: Session = Depends(get_db_session)
@@ -348,5 +348,5 @@ def register_routes(router: APIRouter):
             logger.error(f"There was an error while retrieving the users list. Error: {e}")
             raise DatabaseError(f"There was an error while retrieving the users list.") from e
 
-    router.include_router(auth_router, prefix="")
+    router.include_router(auth_router, prefix="/auth")
     print(f"Auth routes registered: {[route.path for route in router.routes if hasattr(route, 'path')]}")
