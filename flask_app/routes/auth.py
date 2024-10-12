@@ -52,7 +52,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 
 def register_routes(bp: Blueprint):
-    @bp.route("/token", methods=["POST"])
+    @bp.route("/token/json", methods=["POST"])
     @with_db
     def auth(db: Session) -> Response:
         """

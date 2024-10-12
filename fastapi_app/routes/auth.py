@@ -52,12 +52,12 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
 
-    @auth_router.post("/token", response_model=TokenDataResponse, responses={
+    @auth_router.post("/token/json", response_model=TokenDataResponse, responses={
         401: {"model": ResponseAuthenticationError},
         400: {"model": InsufficientAuthDataError}
         }
     )
-    async def auth(
+    async def token_json(
             auth_request: AuthRequest,
             request: Request,
             db: Session = Depends(get_db_session)
@@ -76,7 +76,7 @@ def register_routes(router: APIRouter):
         400: If no data is provided
         401: For invalid username/password
         """
-        logger.info("Auth route called")
+        logger.info("Auth json route called")
         try:
             device_fingerprint = get_device_fingerprint(request)
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
@@ -89,6 +89,42 @@ def register_routes(router: APIRouter):
         logger.info("User authenticated successfully")
 
         return create_auth_response(authentication)
+
+    @auth_router.post("/token/form", response_model=TokenDataResponse, responses={
+            401: {"model": ResponseAuthenticationError},
+            400: {"model": InsufficientAuthDataError}
+        })
+    async def token_form(
+                request: Request,
+                form_data: OAuth2PasswordRequestForm = Depends(),
+                db: Session = Depends(get_db_session)
+    ) -> Response:
+        """
+        Route for authenticating a user.
+
+        Returns:
+        200: {'token': '<token>', 'expires_in': <expires_in>}
+        400: If no data is provided
+        401: For invalid username/password
+        """
+
+        logger.info("Auth form route called")
+        try:
+            device_fingerprint = get_device_fingerprint(request)
+            username = form_data.username
+            password = form_data.password
+            auth_request = AuthRequest(username=username, password=password)
+            auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
+            authentication = User.authenticate(db, auth_request_fingerprinted)
+        # except ValidationError as e:
+        #     raise InsufficientAuthData('username or password not specified') from e
+        except AuthenticationError as e:
+            raise AuthenticationError('Invalid username or password') from e
+        logger.info("User authenticated successfully")
+
+        return create_auth_response(authentication)
+
+
 
     @auth_router.post("/auth/yandex/callback", response_model=TokenDataResponse)
     @auth_router.get("/auth/yandex/callback", response_model=TokenDataResponse, responses={

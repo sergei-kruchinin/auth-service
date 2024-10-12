@@ -39,7 +39,7 @@ def setup_database():
 
 @pytest.fixture(scope="module")
 def get_admin_token():
-    url = f"{BASE_URL}/token"
+    url = f"{BASE_URL}/token/json"
     payload = {
         "username": "admin",
         "password": "password"
@@ -75,7 +75,7 @@ def test_create_user(get_admin_token):
 
 @pytest.fixture
 def get_user_token():
-    url = f"{BASE_URL}/token"
+    url = f"{BASE_URL}/token/json"
     payload = {
         "username": "testuser",
         "password": "password"
