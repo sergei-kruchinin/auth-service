@@ -19,7 +19,7 @@ def setup_database():
 
     # Создаем тестового администратора
     admin_data = ManualUserCreateSchema(
-        login='admin',
+        username='admin',
         first_name='admin',
         last_name='system',
         password='password',
@@ -41,7 +41,7 @@ def setup_database():
 def get_admin_token():
     url = f"{BASE_URL}/auth"
     payload = {
-        "login": "admin",
+        "username": "admin",
         "password": "password"
     }
     response = requests.post(url, json=payload)
@@ -54,7 +54,7 @@ def get_admin_token():
 def test_create_user(get_admin_token):
     url = f"{BASE_URL}/users"
     payload = {
-        "login": "testuser",
+        "username": "testuser",
         "first_name": "Test",
         "last_name": "User",
         "password": "password",
@@ -77,7 +77,7 @@ def test_create_user(get_admin_token):
 def get_user_token():
     url = f"{BASE_URL}/auth"
     payload = {
-        "login": "testuser",
+        "username": "testuser",
         "password": "password"
     }
     response = requests.post(url, json=payload)

@@ -15,7 +15,7 @@ def create_db_once():
 
     try:
         user_data = ManualUserCreateSchema(
-            login='admin',
+            username='admin',
             first_name='admin',
             last_name='system',
             password='password',

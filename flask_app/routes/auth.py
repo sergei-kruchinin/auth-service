@@ -60,14 +60,14 @@ def register_routes(bp: Blueprint):
 
         Request body:
         {
-            "login": "<login>",
+            "username": "<username>",
             "password": "<password>"
         }
 
         Returns:
         200: {'token': '<token>', 'expires_in': <expires_in>}
         400: If no data is provided
-        401: For invalid login/password
+        401: For invalid username/password
         """
         logger.info("Auth route called")
         try:
@@ -80,9 +80,9 @@ def register_routes(bp: Blueprint):
             authentication = User.authenticate(db, auth_request)
 
         except ValidationError as e:
-            raise InsufficientAuthData('login or password not specified') from e
+            raise InsufficientAuthData('username or password not specified') from e
         except AuthenticationError as e:
-            raise AuthenticationError('Invalid login or password') from e
+            raise AuthenticationError('Invalid username or password') from e
 
         logger.info("User authenticated successfully")
 
@@ -219,7 +219,7 @@ def register_routes(bp: Blueprint):
         return response
 
     # TODO make a logout from all devices
-    # TODO make a list of login devices, needed it for logout
+    # TODO make a list of username devices, needed it for logout
     # TODO is_system and source and source_id usage in routes and methods(?)
 
     # ### 3. User Management Methods: ###
@@ -238,7 +238,7 @@ def register_routes(bp: Blueprint):
 
         Request body (JSON):
         {
-            "login": "<login>",
+            "username": "<username>",
             "first_name": "<first_name>",
             "last_name": "<last_name>",
             "password": "<password>",
@@ -268,12 +268,12 @@ def register_routes(bp: Blueprint):
             user_data = ManualUserCreateSchema(**json_data) # not correct schema
         except ValidationError as e:
             logger.warning(f"Not Correct ManualUserCreateSchema for manual user: {str(e)}")
-            raise InsufficientAuthData(f"Invalid login format") from e
+            raise InsufficientAuthData(f"Invalid username format") from e
 
         try:
             User.create_with_check(db, user_data)
         except UserAlreadyExistsError as e:
-            logger.warning(f"User with login already exists: {str(e)}")
+            logger.warning(f"User with username already exists: {str(e)}")
             raise
         except DatabaseError as e:
             logger.error(f"There was an error while creating a user: {str(e)}")

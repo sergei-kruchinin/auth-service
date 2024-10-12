@@ -67,14 +67,14 @@ def register_routes(router: APIRouter):
 
         Request body:
         {
-            "login": "<login>",
+            "username": "<username>",
             "password": "<password>"
         }
 
         Returns:
         200: {'token': '<token>', 'expires_in': <expires_in>}
         400: If no data is provided
-        401: For invalid login/password
+        401: For invalid username/password
         """
         logger.info("Auth route called")
         try:
@@ -82,9 +82,9 @@ def register_routes(router: APIRouter):
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
             authentication = User.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
-        #     raise InsufficientAuthData('login or password not specified') from e
+        #     raise InsufficientAuthData('username or password not specified') from e
         except AuthenticationError as e:
-            raise AuthenticationError('Invalid login or password') from e
+            raise AuthenticationError('Invalid username or password') from e
 
         logger.info("User authenticated successfully")
 
@@ -241,7 +241,7 @@ def register_routes(router: APIRouter):
 
         Request body (JSON):
         {
-            "login": "<login>",
+            "username": "<username>",
             "first_name": "<first_name>",
             "last_name": "<last_name>",
             "password": "<password>",
@@ -266,13 +266,13 @@ def register_routes(router: APIRouter):
         try:
             user = User.create_with_check(db, user_to_create)
         except UserAlreadyExistsError as e:
-            logger.warning(f"User with login already exists: {str(e)}")
+            logger.warning(f"User with username already exists: {str(e)}")
             raise
         except DatabaseError as e:
-            logger.error(f"There was an error while creating a user {user_to_create.login}: {str(e)}")
+            logger.error(f"There was an error while creating a user {user_to_create.username}: {str(e)}")
             raise DatabaseError(f"There was an error while creating a user ") from e
 
-        response_data = SimpleResponseStatus(success=True, message=f'User {user.login} created').dict()
+        response_data = SimpleResponseStatus(success=True, message=f'User {user.username} created').dict()
         logger.info("User created successfully")
         return JSONResponse(
             status_code=201,

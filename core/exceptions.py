@@ -54,7 +54,7 @@ class NoDataProvided(Exception):
 
 
 class InsufficientAuthData(AuthenticationError):
-    """Raised when there is insufficient data (login or password missing)."""
+    """Raised when there is insufficient data (username or password missing)."""
     pass
 
 

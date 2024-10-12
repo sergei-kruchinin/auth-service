@@ -20,7 +20,7 @@ class User(Base):
 
     Attributes:
         id (int): The unique identifier for the user.
-        login (str): The login name of the user.
+        username (str): The username name of the user.
         first_name (str): The first name of the user (optional).
         last_name (str): The last name of the user (optional).
         secret (str): The password hash or secret for the user (optional).
@@ -33,7 +33,7 @@ class User(Base):
 
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
-    login = Column(String(128), unique=True, nullable=False)
+    username = Column(String(128), unique=True, nullable=False)
     first_name = Column(String(128), nullable=True)
     last_name = Column(String(128), nullable=True)
     secret = Column(String(256), nullable=True)
@@ -52,7 +52,7 @@ class User(Base):
     sessions = relationship("UserSession", back_populates="user")
 
     def __init__(self, user_data: UserCreateSchema):
-        self.login = user_data.login
+        self.username = user_data.username
         self.first_name = user_data.first_name
         self.last_name = user_data.last_name
         self.secret = PasswordHash.generate_or_none(user_data.password)
@@ -115,7 +115,7 @@ class User(Base):
 
         Raises:
             DatabaseError: If there was an error while creating a user.
-            UserAlreadyExistsError: If user with the login already exists.
+            UserAlreadyExistsError: If user with the username already exists.
           """
         logger.debug("Creating new user")
         try:
@@ -124,7 +124,7 @@ class User(Base):
             db.add(new_user)
             db.commit()
             new_user.set_oa_id_if_user_is_manual(db)
-            logger.info(f"User created successfully: {new_user.login}")
+            logger.info(f"User created successfully: {new_user.username}")
             return new_user
         except DatabaseError:
             raise
@@ -134,23 +134,23 @@ class User(Base):
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
-    def __get_user_by_login(cls, db: Session, login: str) -> Optional['User']:
+    def __get_user_by_username(cls, db: Session, username: str) -> Optional['User']:
         """
-        Fetch a user by login.
+        Fetch a user by username.
 
-        This method is used for retrieving a user by their login.
+        This method is used for retrieving a user by their username.
         It can also be used for checking if a user exists in the database.
 
         Args:
             db (Session): The SQLAlchemy session to use for the database query.
-            login (str): The login of the user to fetch.
+            username (str): The username of the user to fetch.
 
         Returns:
             User: The user object if found, otherwise None.
         """
-        logger.debug(f"Fetching user by login: {login}")
+        logger.debug(f"Fetching user by username: {username}")
         try:
-            return db.query(cls).filter_by(login=login).first()
+            return db.query(cls).filter_by(username=username).first()
         except SQLAlchemyError as e:
             logger.error(f"There was an error while fetching the user: {str(e)}")
             raise DatabaseError(f"There was an error while fetching the user: {str(e)}") from e
@@ -169,14 +169,14 @@ class User(Base):
             Users: The newly created user.
 
         Raises:
-            UserAlreadyExistsError: If user with the login already exists.
+            UserAlreadyExistsError: If user with the username already exists.
         """
 
         logger.debug("Creating new user with check")
 
-        if cls.__get_user_by_login(db, user_data.login) is not None:
-            logger.warning(f"User with login {user_data.login} already exists")
-            raise UserAlreadyExistsError(f"User with login {user_data.login} already exists")
+        if cls.__get_user_by_username(db, user_data.username) is not None:
+            logger.warning(f"User with username {user_data.username} already exists")
+            raise UserAlreadyExistsError(f"User with username {user_data.username} already exists")
 
         try:
             user_data = user_data.to_user_create_schema()
@@ -217,7 +217,7 @@ class User(Base):
 
         Args:
             db (Session): Session
-            oauth_user_data (OAuthUserCreateSchema): The OAuth User data without login and with source and oa_id
+            oauth_user_data (OAuthUserCreateSchema): The OAuth User data without username and with source and oa_id
 
         Returns:
             User: The created or updated user.
@@ -228,15 +228,15 @@ class User(Base):
         logger.debug("Creating or updating OAuth user")
 
         try:
-            user = cls.__get_user_by_login(db, oauth_user_data.login)
+            user = cls.__get_user_by_username(db, oauth_user_data.username)
 
             if user is None:
                 user_data = oauth_user_data.to_user_create_schema()
                 user = cls.__create(db, user_data)
-                logger.info(f"OAuth user created: {user.login}")
+                logger.info(f"OAuth user created: {user.username}")
             else:
                 user.__update_oauth_user(db, oauth_user_data)
-                logger.info(f"OAuth user updated: {user.login}")
+                logger.info(f"OAuth user updated: {user.username}")
 
         except DatabaseError as e:
             logger.error(f"There was an error while creating/updating the user: {str(e)}")
@@ -255,7 +255,7 @@ class User(Base):
         """
         payload = TokenPayload(
             id=self.id,
-            login=self.login,
+            username=self.username,
             first_name=self.first_name,
             last_name=self.last_name,
             is_admin=self.is_admin,
@@ -276,24 +276,24 @@ class User(Base):
     @classmethod
     def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
         """
-        Authenticate user with login and password.
+        Authenticate user with username and password.
 
         Args:
-            auth_request (AuthRequestFingerPrinted): The login and plaintext password of the user.
+            auth_request (AuthRequestFingerPrinted): The username and plaintext password of the user.
             db (Session): Session
         Returns:
             AuthTokens: The generated access and refresh tokens and their expiration times.
         Raises:
-            AuthenticationError: If login or password is invalid.
+            AuthenticationError: If username or password is invalid.
         """
-        logger.debug(f"Authenticating user: {auth_request.login}")
+        logger.debug(f"Authenticating user: {auth_request.username}")
         try:
-            user = db.query(cls).filter_by(login=auth_request.login).first()
+            user = db.query(cls).filter_by(username=auth_request.username).first()
 
             if user is None or not PasswordHash.check(str(user.secret), auth_request.password):
-                logger.warning(f"Authentication failed for user: {auth_request.login}")
-                raise AuthenticationError('Invalid login or invalid password')
-            logger.info(f"User authenticated successfully: {user.login}")
+                logger.warning(f"Authentication failed for user: {auth_request.username}")
+                raise AuthenticationError('Invalid username or invalid password')
+            logger.info(f"User authenticated successfully: {user.username}")
 
             return user.__generate_auth_response(auth_request.device_fingerprint)
 
@@ -309,7 +309,7 @@ class User(Base):
             Dict: The generated token and expiration time.
 
         """
-        logger.debug(f"Authenticating OAuth user: {self.login}")
+        logger.debug(f"Authenticating OAuth user: {self.username}")
         return self.__generate_auth_response(device_fingerprint)
 
     # ### 5. Object Representation Methods ###
@@ -319,7 +319,7 @@ class User(Base):
         Represent user information for debugging/logging.
 
         Returns:
-            str: Representation of the user's login.
+            str: Representation of the user's username.
         """
 
-        return f'<User(login={self.login}, id={self.id}, is_admin={self.is_admin})>'
+        return f'<User(username={self.username}, id={self.id}, is_admin={self.is_admin})>'

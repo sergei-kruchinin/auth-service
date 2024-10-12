@@ -6,11 +6,11 @@ from .schemas import SimpleErrorResponseStatus
 # === Exception Schemas For FastAPI and docs ===
 
 class ResponseAuthenticationError(SimpleErrorResponseStatus):
-    message: str = 'Invalid login or password'
+    message: str = 'Invalid username or password'
 
 
 class InsufficientAuthDataError(SimpleErrorResponseStatus):
-    message: str = 'No login or password specified'
+    message: str = 'No username or password specified'
 
 
 class OAuthServerErrorSchema(SimpleErrorResponseStatus):
