@@ -159,7 +159,7 @@ Environment variables are used to configure the service. Key variables include:
     ```sh
     POST /auth
     {
-        "login": "user_login",
+        "username": "user_login",
         "password": "user_password"
     }
     ```
@@ -185,7 +185,7 @@ Environment variables are used to configure the service. Key variables include:
     ```sh
     POST /users
     {
-        "login": "new_user",
+        "username": "new_user_login",
         "first_name": "First",
         "last_name": "Last",
         "password": "password",
