@@ -15,3 +15,7 @@ class InsufficientAuthDataError(SimpleErrorResponseStatus):
 
 class OAuthServerErrorSchema(SimpleErrorResponseStatus):
     message: str = 'OAuth Server Error'
+
+
+class TokenInvalidErrorSchema(SimpleErrorResponseStatus):
+    message: str = 'Token Invalid or Expired'

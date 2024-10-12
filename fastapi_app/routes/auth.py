@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
-
+from fastapi.security import OAuth2PasswordBearer  # for Swagger
 
 from core.schemas import *
 from core.schemas_exceptions import *
@@ -169,21 +169,19 @@ def register_routes(router: APIRouter):
         response = JSONResponse(response_data, status_code=200)
         return response
 
-    @auth_router.post("/verify", response_model=TokenVerification)
+    @auth_router.post("/verify", response_model=TokenVerification, responses={
+                    401: {"model": TokenInvalidErrorSchema}
+                    })
     async def verify(
             verification: TokenVerification = Depends(token_required)
     ) -> Response:
         """
         Route for verifying an authentication token.
 
-        Method: POST
-
         Headers:
-        - Authorization: Bearer <token>
 
-        Returns:
-        200: JSON containing verification status
-        401: For invalid or expired tokens
+            - Authorization: Bearer <token>
+
         """
         logger.info(f"Verify route called: {verification}")
         response_data = verification.dict()

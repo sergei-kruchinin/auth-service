@@ -10,7 +10,7 @@ from core.exceptions import *
 
 logger = logging.getLogger(__name__)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth")
 
 
 def get_device_fingerprint(request: Request) -> str:
