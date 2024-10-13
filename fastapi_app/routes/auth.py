@@ -48,6 +48,33 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
     return response
 
+async def get_yandex_user_info(access_token) -> YandexUserInfo:
+    try:
+        user_info = await YandexOAuthService.get_user_info(access_token)
+        logger.info("Successfully retrieved user info from Yandex")
+        return user_info
+    except OAuthUserDataRetrievalError as e:
+        logger.error(f'Unable to retrieve user data: {str(e)}')
+        raise
+    # except CustomValidationError as e:
+    #     logger.error(f"Invalid user data received from Yandex: {str(e)}")
+    #     raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
+
+
+async def authenticate_with_yandex_token(access_token, db, device_fingerprint) -> Response:
+    if access_token is None:
+        logger.error('access_token is None: Token or authorization code is missing')
+        raise OAuthServerError('Token or authorization code is missing')
+
+    yandex_user_info = await get_yandex_user_info(access_token)
+
+    oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
+    user = User.create_or_update_oauth_user(db, oauth_user_data)
+    authentication = user.authenticate_oauth(device_fingerprint)
+
+    logger.info("Yandex user authenticated successfully")
+    return create_auth_response(authentication)
+
 
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
@@ -64,17 +91,6 @@ def register_routes(router: APIRouter):
     ) -> Response:
         """
         Route for authenticating a user.
-
-        Request body:
-        {
-            "username": "<username>",
-            "password": "<password>"
-        }
-
-        Returns:
-        200: {'token': '<token>', 'expires_in': <expires_in>}
-        400: If no data is provided
-        401: For invalid username/password
         """
         logger.info("Auth json route called")
         try:
@@ -100,12 +116,7 @@ def register_routes(router: APIRouter):
                 db: Session = Depends(get_db_session)
     ) -> Response:
         """
-        Route for authenticating a user.
-
-        Returns:
-        200: {'token': '<token>', 'expires_in': <expires_in>}
-        400: If no data is provided
-        401: For invalid username/password
+        Route for authenticating a user by post form (for swagger).
         """
 
         logger.info("Auth form route called")
@@ -124,70 +135,40 @@ def register_routes(router: APIRouter):
 
         return create_auth_response(authentication)
 
-
-
     @auth_router.post("/token/yandex/callback", response_model=TokenDataResponse)
-    @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
-        503: {"model": OAuthServerErrorSchema}
-        })
-    async def auth_yandex_callback(
+    async def auth_yandex_callback_post(
             request: Request,
             db: Session = Depends(get_db_session)
     ) -> Response:
-        """
-        Route for handling Yandex OAuth callback.
-
-        Methods: POST, GET
-
-        Request parameters:
-        - token (POST, JSON): The OAuth token
-        - token (GET, query parameter): The OAuth token
-        - code (GET, query parameter): The authorization code from Yandex
-        Returns:
-        200: JSON containing authentication token
-        503: If there's an OAuth or user data retrieval error
-        """
-        logger.info("Received Yandex OAuth callback request")
+        logger.info("Received Yandex OAuth POST callback request")
         device_fingerprint = get_device_fingerprint(request)
-        if request.method == 'POST':
-            json_data = await request.json()
-            access_token = json_data.get('token')
-        else:  # GET
-            access_token = request.query_params.get('token')
-            auth_code = request.query_params.get('code')
 
-            if access_token is None and auth_code is not None:
-                try:
-                    access_token = await YandexOAuthService.get_token_from_code(auth_code)
-                except OAuthTokenRetrievalError as e:
-                    logger.error(f'Yandex OAuth error: {str(e)}')
-                    raise
+        json_data = await request.json()
+        access_token = json_data.get('token')
 
-        if access_token is None:
-            logger.error('access_token is None: Token or authorization code is missing')
-            raise OAuthServerError('Token or authorization code is missing')
+        return await authenticate_with_yandex_token(access_token, db, device_fingerprint)
 
-        try:
-            yandex_user_info = await YandexOAuthService.get_user_info(access_token)
-            logger.info("Successfully retrieved user info from Yandex")
-        except OAuthUserDataRetrievalError as e:  # to refactor
-            logger.error(f'Unable to retrieve user data: {str(e)}')
-            raise
-        # except CustomValidationError as e:
-        #    logger.error(f"Invalid user data received from Yandex: {str(e)}")
-        #    raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
+    @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
+        503: {"model": OAuthServerErrorSchema},
+        504: {"model": OAuthServerErrorSchema}
+    })
+    async def auth_yandex_callback_get(
+            request: Request,
+            db: Session = Depends(get_db_session)
+    ) -> Response:
+        logger.info("Received Yandex OAuth GET callback request")
+        device_fingerprint = get_device_fingerprint(request)
 
-        try:
-            oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
-            user = User.create_or_update_oauth_user(db, oauth_user_data)
-            authentication = user.authenticate_oauth(device_fingerprint)
-        except DatabaseError as e:
-            logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
-            raise DatabaseError(f"There was an error while syncing the user from yandex") from e
+        access_token = request.query_params.get('token')
+        auth_code = request.query_params.get('code')
 
-        logger.info("Yandex user authenticated successfully")
-
-        return create_auth_response(authentication)
+        if access_token is None and auth_code is not None:
+            try:
+                access_token = await YandexOAuthService.get_token_from_code(auth_code)
+            except OAuthTokenRetrievalError as e:
+                logger.error(f'Yandex OAuth error: {str(e)}')
+                raise
+        return await authenticate_with_yandex_token(access_token, db, device_fingerprint)
 
     @auth_router.get("/yandex/by_code", response_model=IframeUrlResponse)
     async def auth_yandex_by_code() -> Response:
