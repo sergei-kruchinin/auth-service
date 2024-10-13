@@ -13,7 +13,7 @@ class ResponseBase(BaseModel):
 
 
 class SimpleResponseStatus(ResponseBase):
-    message: str = Field (..., description="Status description")
+    message: str = Field(..., description="Status description")
 
 
 class SimpleErrorResponseStatus(ResponseBase):
