@@ -24,7 +24,7 @@ def register_error_handlers(app: FastAPI):
             #  "headers": dict(request.headers),
             #  "query_params": dict(request.query_params),
         }
-        if str(request.url.path) == "/auth":
+        if str(request.url.path) == "/auth/token/json":
             raise InsufficientAuthData(exc)
 
         return JSONResponse(
