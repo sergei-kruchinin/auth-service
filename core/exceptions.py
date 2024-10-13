@@ -57,6 +57,7 @@ class InsufficientAuthData(AuthenticationError):
     """Raised when there is insufficient data (username or password missing)."""
 
     def __init__(self, errors):
+        """To get errors from ValidationError"""
         super().__init__(str(errors))
         self.errors = errors
 

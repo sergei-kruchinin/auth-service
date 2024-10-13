@@ -7,24 +7,9 @@ import logging
 from fastapi.exceptions import RequestValidationError  #  for 422
 from core.exceptions import *
 from core.schemas_exceptions import *
-import ast
-import json
+
 
 logger = logging.getLogger(__name__)
-
-
-def get_list_of_dicts_from_string(string_data):
-    try:
-        list_of_dicts = ast.literal_eval(string_data)
-
-        if isinstance(list_of_dicts, list) and all(isinstance(d, dict) for d in list_of_dicts):
-            return list_of_dicts
-        else:
-            logger.error(f"Parsed data is not a list of dictionaries")
-            return []
-    except (ValueError, SyntaxError) as e:
-        logger.error(f"Error parsing string: {e}")
-        return []
 
 
 def register_error_handlers(app: FastAPI):
@@ -123,8 +108,6 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(InsufficientAuthData)
     async def handle_insufficient_error(request: Request, exc: InsufficientAuthData):
         """ Custom error handler for 400 HTTP Error called instead FastAPI 422"""
-        errors_list = get_list_of_dicts_from_string(str(exc.errors))
-        '''
         if exc.errors:
             logger.warning(f"Processed errors: {exc.errors}")
             print("Errors from exception:", exc.errors)
@@ -133,8 +116,8 @@ def register_error_handlers(app: FastAPI):
             errors_list = exc.errors.errors()
         else:
             errors_list = [{"msg": str(exc)}]
-        '''
         error_response = InsufficientAuthDataError(detail=errors_list)
+
         return JSONResponse(status_code=400, content=error_response.dict())
 
     @app.exception_handler(AuthenticationError)
