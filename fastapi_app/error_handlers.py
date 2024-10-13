@@ -11,6 +11,9 @@ from core.schemas_exceptions import *
 
 logger = logging.getLogger(__name__)
 
+CUSTOM_ERRORS = {"/auth/token/json": InsufficientAuthData,
+                 "/auth/token/form": InsufficientAuthData}
+
 
 def register_error_handlers(app: FastAPI):
 
@@ -94,8 +97,11 @@ def register_error_handlers(app: FastAPI):
             #  "headers": dict(request.headers),
             #  "query_params": dict(request.query_params),
         }
-        if str(request.url.path) == "/auth/token/json":
-            raise InsufficientAuthData(exc)
+        path = str(request.url.path)
+        if path in CUSTOM_ERRORS:
+            raise CUSTOM_ERRORS[path](exc)
+        # if str(request.url.path) == "/auth/token/json":
+        #    raise InsufficientAuthData(exc)
 
         return JSONResponse(
             status_code=422,
