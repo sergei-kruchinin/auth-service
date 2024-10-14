@@ -115,8 +115,8 @@ class AuthRequestFingerPrinted(AuthRequest):
 
 # === OAuth Token Schemas ===
 class YandexCallbackQueryParams(BaseModel):
-    code: str | None = Field(default=None, description="Authorization code from Yandex")
-    token: str | None = Field(default=None, description="Access token from Yandex")
+    code: int | None = Field(default=None, description="Authorization code from Yandex")
+    token:  constr(min_length=95) | None = Field(default=None, description="Access token from Yandex")
 
     def to_yandex_access_token(self) -> 'YandexAccessToken':
         return YandexAccessToken(token=self.token)
