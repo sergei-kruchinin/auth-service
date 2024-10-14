@@ -48,25 +48,18 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
     return response
 
-async def get_yandex_user_info(access_token) -> YandexUserInfo:
-    try:
-        user_info = await YandexOAuthService.get_user_info(access_token)
-        logger.info("Successfully retrieved user info from Yandex")
-        return user_info
-    except OAuthUserDataRetrievalError as e:
-        logger.error(f'Unable to retrieve user data: {str(e)}')
-        raise
-    # except CustomValidationError as e:
-    #     logger.error(f"Invalid user data received from Yandex: {str(e)}")
-    #     raise CustomValidationError(f'Invalid user data received from Yandex: {str(e)}') from e
-
 
 async def authenticate_with_yandex_token(access_token, db, device_fingerprint) -> Response:
     if access_token is None:
         logger.error('access_token is None: Token or authorization code is missing')
         raise OAuthServerError('Token or authorization code is missing')
 
-    yandex_user_info = await get_yandex_user_info(access_token)
+    try:
+        yandex_user_info = await YandexOAuthService.get_user_info(access_token)
+        logger.info("Successfully retrieved user info from Yandex")
+    except OAuthUserDataRetrievalError as e:
+        logger.error(f'Unable to retrieve user data: {str(e)}')
+        raise
 
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
     user = User.create_or_update_oauth_user(db, oauth_user_data)
