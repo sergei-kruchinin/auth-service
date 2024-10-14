@@ -49,13 +49,13 @@ def create_auth_response(authentication: AuthTokens) -> Response:
     return response
 
 
-async def authenticate_with_yandex_token(access_token, db, device_fingerprint) -> Response:
-    if access_token is None:
-        logger.error('access_token is None: Token or authorization code is missing')
-        raise OAuthServerError('Token or authorization code is missing')
+async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken, db, device_fingerprint) -> Response:
+    # if access_token is None:
+    #    logger.error('access_token is None: Token or authorization code is missing')
+    #    raise InvalidOauthGetParams('Token or authorization code is missing')
 
     try:
-        yandex_user_info = await YandexOAuthService.get_user_info(access_token)
+        yandex_user_info = await YandexOAuthService.get_user_info(yandex_access_token.token)
         logger.info("Successfully retrieved user info from Yandex")
     except OAuthUserDataRetrievalError as e:
         logger.error(f'Unable to retrieve user data: {str(e)}')
@@ -128,18 +128,18 @@ def register_routes(router: APIRouter):
 
         return create_auth_response(authentication)
 
-    @auth_router.post("/token/yandex/callback", response_model=TokenDataResponse)
+    @auth_router.post("/token/yandex/callback", response_model=TokenDataResponse, responses={
+        400: {"model": InvalidOauthPostJsonSchema},
+        504: {"model": OAuthServerErrorSchema}
+    })
     async def auth_yandex_callback_post(
             request: Request,
+            yandex_access_token: YandexAccessToken,
             db: Session = Depends(get_db_session)
     ) -> Response:
         logger.info("Received Yandex OAuth POST callback request")
         device_fingerprint = get_device_fingerprint(request)
-
-        json_data = await request.json()
-        access_token = json_data.get('token')
-
-        return await authenticate_with_yandex_token(access_token, db, device_fingerprint)
+        return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
         503: {"model": OAuthServerErrorSchema},
@@ -161,7 +161,8 @@ def register_routes(router: APIRouter):
             except OAuthTokenRetrievalError as e:
                 logger.error(f'Yandex OAuth error: {str(e)}')
                 raise
-        return await authenticate_with_yandex_token(access_token, db, device_fingerprint)
+        yandex_access_token=YandexAccessToken(token=access_token)
+        return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/yandex/by_code", response_model=IframeUrlResponse)
     async def auth_yandex_by_code() -> Response:

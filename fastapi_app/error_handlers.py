@@ -11,8 +11,10 @@ from core.schemas_exceptions import *
 
 logger = logging.getLogger(__name__)
 
-CUSTOM_ERRORS = {"/auth/token/json": InsufficientAuthData,
-                 "/auth/token/form": InsufficientAuthData}
+CUSTOM_ERRORS = {"POST /auth/token/json": InsufficientAuthData,
+                 "POST /auth/token/form": InsufficientAuthData,
+                 "POST /auth/token/yandex/callback": InvalidOauthPostJson
+                 }
 
 
 def register_error_handlers(app: FastAPI):
@@ -92,12 +94,13 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(RequestValidationError)
     async def custom_request_validation_exception_handler(request: Request, exc: RequestValidationError):
         request_info = {
-            "method": request.method,
-            "url": str(request.url),
+            "method": str(request.method),
+            "url": str(request.url.path),
             #  "headers": dict(request.headers),
             #  "query_params": dict(request.query_params),
         }
-        path = str(request.url.path)
+        path = f"{request_info['method']} {request_info['url']}"
+        print(path)
         if path in CUSTOM_ERRORS:
             raise CUSTOM_ERRORS[path](exc)
         # if str(request.url.path) == "/auth/token/json":
@@ -114,9 +117,7 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(InsufficientAuthData)
     async def handle_insufficient_error(request: Request, exc: InsufficientAuthData):
         """ Custom error handler for 400 HTTP Error called instead FastAPI 422"""
-        if exc.errors:
-            logger.warning(f"Processed errors: {exc.errors}")
-            print("Errors from exception:", exc.errors)
+        logger.warning(f"Processed errors: {str(exc)}")
 
         if isinstance(exc.errors, RequestValidationError):
             errors_list = exc.errors.errors()
@@ -171,6 +172,24 @@ def register_error_handlers(app: FastAPI):
             status_code=400,
             content={'success': False, 'message': str(exc)}
         )
+
+    @app.exception_handler(InvalidOauthGetParams)
+    async def invalid_oauth_get_params(request: Request, exc: InvalidOauthGetParams):
+        logger.error(f"Invalid Get Params: {str(exc)}")
+        error_response = InvalidOauthGetParamsSchema()
+        return JSONResponse(status_code=400, content=error_response.dict())
+
+    @app.exception_handler(InvalidOauthPostJson)
+    async def invalid_oauth_post_json(request: Request, exc: InvalidOauthPostJson):
+        """ Custom error handler for 400 HTTP Error called instead FastAPI 422"""
+        logger.warning(f"Processed errors: {str(exc)}")
+        if isinstance(exc.errors, RequestValidationError):
+            errors_list = exc.errors.errors()
+        else:
+            errors_list = [{"msg": str(exc)}]
+        error_response = InvalidOauthPostJsonSchema(detail=errors_list)
+        return JSONResponse(status_code=400, content=error_response.dict())
+
 
     @app.exception_handler(OAuthServerError)
     async def oauth_server_error_occurred(request: Request, exc: OAuthServerError):

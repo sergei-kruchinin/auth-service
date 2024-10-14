@@ -61,8 +61,21 @@ class InsufficientAuthData(AuthenticationError):
         super().__init__(str(errors))
         self.errors = errors
 
+
 class OAuthServerError(Exception):
     pass
+
+
+class InvalidOauthGetParams(Exception):
+    pass
+
+
+class InvalidOauthPostJson(Exception):
+
+    def __init__(self, errors):  # to Refactory -- delete repeating code
+        """To get errors from ValidationError"""
+        super().__init__(str(errors))
+        self.errors = errors
 
 
 class OAuthTokenRetrievalError(OAuthServerError):

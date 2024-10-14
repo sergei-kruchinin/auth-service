@@ -24,5 +24,13 @@ class OAuthServerErrorSchema(SimpleErrorResponseStatus):
     message: str = 'OAuth Server Error'
 
 
+class InvalidOauthGetParamsSchema(SimpleErrorResponseStatus):
+    message: str = 'OAuth Token or authorization code is missing'
+
+
+class InvalidOauthPostJsonSchema(SimpleErrorResponseStatus, ErrorDetail):
+    message: str = 'OAuth Token is missing'
+
+
 class TokenInvalidErrorSchema(SimpleErrorResponseStatus):
     message: str = 'Token Invalid or Expired'

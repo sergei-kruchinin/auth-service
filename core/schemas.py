@@ -113,6 +113,11 @@ class AuthRequestFingerPrinted(AuthRequest):
     device_fingerprint: str = Field(
         ..., description="The fingerprint of the user's device")
 
+
+class YandexAccessToken(BaseModel):
+    token: str
+
+
 # === User Models ===
 
 
