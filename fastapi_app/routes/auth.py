@@ -1,6 +1,6 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, Query
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
@@ -50,10 +50,6 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 
 async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken, db, device_fingerprint) -> Response:
-    # if access_token is None:
-    #    logger.error('access_token is None: Token or authorization code is missing')
-    #    raise InvalidOauthGetParams('Token or authorization code is missing')
-
     try:
         yandex_user_info = await YandexOAuthService.get_user_info(yandex_access_token.token)
         logger.info("Successfully retrieved user info from Yandex")
@@ -137,23 +133,35 @@ def register_routes(router: APIRouter):
             yandex_access_token: YandexAccessToken,
             db: Session = Depends(get_db_session)
     ) -> Response:
+        """
+        Route for handling Yandex OAuth callback (POST).
+        """
         logger.info("Received Yandex OAuth POST callback request")
         device_fingerprint = get_device_fingerprint(request)
         return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
+        400: {"model": InvalidOauthGetParamsSchema},
         503: {"model": OAuthServerErrorSchema},
         504: {"model": OAuthServerErrorSchema}
     })
     async def auth_yandex_callback_get(
             request: Request,
+            code: str = Query(None),
+            token: str = Query(None),
             db: Session = Depends(get_db_session)
     ) -> Response:
+        """
+        Route for handling Yandex OAuth callback (GET).
+        """
         logger.info("Received Yandex OAuth GET callback request")
         device_fingerprint = get_device_fingerprint(request)
 
-        access_token = request.query_params.get('token')
-        auth_code = request.query_params.get('code')
+        access_token = token
+        auth_code = code
+
+        if access_token is None and auth_code is None:
+            raise InvalidOauthGetParams('No code or token')
 
         if access_token is None and auth_code is not None:
             try:
@@ -161,7 +169,8 @@ def register_routes(router: APIRouter):
             except OAuthTokenRetrievalError as e:
                 logger.error(f'Yandex OAuth error: {str(e)}')
                 raise
-        yandex_access_token=YandexAccessToken(token=access_token)
+
+        yandex_access_token = YandexAccessToken(token=access_token)
         return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/yandex/by_code", response_model=IframeUrlResponse)

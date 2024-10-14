@@ -28,9 +28,6 @@ class IframeUrlResponse(SimpleSuccessResponseStatus):
     iframe_url: str = Field(..., description="Iframe URL for OAuth")
 
 
-
-
-
 # === Token Models ===
 class TokenPayload(BaseModel):
     id: int = Field(..., description="User id in our database")
