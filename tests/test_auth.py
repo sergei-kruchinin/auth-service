@@ -1,6 +1,6 @@
 import pytest
 import requests
-from core.schemas import ManualUserCreateSchema, AuthRequest
+from core.schemas import ManualUserCreateSchema
 from core.models import Base, engine, User
 from sqlalchemy.orm import sessionmaker
 

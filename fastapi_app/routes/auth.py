@@ -1,10 +1,10 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, Response, Query
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 
 from core.schemas import *
 from core.schemas_exceptions import *
@@ -147,8 +147,7 @@ def register_routes(router: APIRouter):
     })
     async def auth_yandex_callback_get(
             request: Request,
-            code: str = Query(None),
-            token: str = Query(None),
+            query_params: YandexCallbackQueryParams = Depends(),
             db: Session = Depends(get_db_session)
     ) -> Response:
         """
@@ -157,20 +156,15 @@ def register_routes(router: APIRouter):
         logger.info("Received Yandex OAuth GET callback request")
         device_fingerprint = get_device_fingerprint(request)
 
-        access_token = token
-        auth_code = code
-
-        if access_token is None and auth_code is None:
-            raise InvalidOauthGetParams('No code or token')
-
-        if access_token is None and auth_code is not None:
+        if query_params.token is None:
             try:
-                access_token = await YandexOAuthService.get_token_from_code(auth_code)
+                query_params.token = await YandexOAuthService.get_token_from_code(query_params.code)
             except OAuthTokenRetrievalError as e:
                 logger.error(f'Yandex OAuth error: {str(e)}')
                 raise
 
-        yandex_access_token = YandexAccessToken(token=access_token)
+        yandex_access_token = query_params.to_yandex_access_token()
+
         return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/yandex/by_code", response_model=IframeUrlResponse)

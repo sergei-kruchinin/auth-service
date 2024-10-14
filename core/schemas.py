@@ -5,6 +5,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 from typing import Dict, Any, List
 
+from core.exceptions import InvalidOauthGetParams
+
 
 # === Response Models
 
@@ -109,6 +111,37 @@ class AuthRequestFingerPrinted(AuthRequest):
     )
     device_fingerprint: str = Field(
         ..., description="The fingerprint of the user's device")
+
+
+# === OAuth Token Schemas ===
+class YandexCallbackQueryParams(BaseModel):
+    code: str | None = Field(default=None, description="Authorization code from Yandex")
+    token: str | None = Field(default=None, description="Access token from Yandex")
+
+    def to_yandex_access_token(self) -> 'YandexAccessToken':
+        return YandexAccessToken(token=self.token)
+
+    @model_validator(mode='before')
+    def code_or_token_present(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ensure that the code or token presents in get parameters.
+
+        Args:
+            values (dict): The values received for model fields.
+
+        Raises:
+            ValueError: If the 'code' and 'token' field both None.
+
+        Returns:
+            dict: The original values if validation passes.
+        """
+
+        code = values.get('code')
+        token = values.get('token')
+
+        if code is None and token is None:
+            raise InvalidOauthGetParams("Code is None and token is none in get parameter")
+        return values
 
 
 class YandexAccessToken(BaseModel):
