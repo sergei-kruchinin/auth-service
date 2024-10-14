@@ -53,13 +53,17 @@ class NoDataProvided(Exception):
     pass
 
 
-class InsufficientAuthData(AuthenticationError):
+class ValidationErrorInherited(AuthenticationError):
     """Raised when there is insufficient data (username or password missing)."""
 
     def __init__(self, errors):
         """To get errors from ValidationError"""
         super().__init__(str(errors))
         self.errors = errors
+
+class InsufficientAuthData(ValidationErrorInherited):
+    """Raised when there is insufficient data (username or password missing)."""
+    pass
 
 
 class OAuthServerError(Exception):
@@ -70,13 +74,8 @@ class InvalidOauthGetParams(Exception):
     pass
 
 
-class InvalidOauthPostJson(Exception):
-
-    def __init__(self, errors):  # to Refactory -- delete repeating code
-        """To get errors from ValidationError"""
-        super().__init__(str(errors))
-        self.errors = errors
-
+class InvalidOauthPostJson(ValidationErrorInherited):
+    pass
 
 class OAuthTokenRetrievalError(OAuthServerError):
     pass
