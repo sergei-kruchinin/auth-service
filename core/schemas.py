@@ -148,7 +148,7 @@ class AuthRequestFingerPrinted(AuthRequest):
 
 # === OAuth Token Schemas ===
 class YandexCallbackQueryParams(BaseModel):
-    code: int | None = Field(default=None, description="Authorization code from Yandex")
+    code: str | None = Field(default=None, description="Authorization code from Yandex")
     token:  constr(min_length=95) | None = Field(default=None, description="Access token from Yandex")
 
     def to_yandex_access_token(self) -> 'YandexAccessToken':
@@ -169,11 +169,8 @@ class YandexCallbackQueryParams(BaseModel):
             dict: The original values if validation passes.
         """
 
-        code = values.get('code')
-        token = values.get('token')
-
-        if code is None and token is None:
-            raise InvalidOauthGetParams("Code is None and token is none in get parameter")
+        if not (values.get('code') or values.get('token')):
+            raise InvalidOauthGetParams("Code and token cannot be both None in get parameters")
         return values
 
 

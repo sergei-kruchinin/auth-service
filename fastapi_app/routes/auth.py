@@ -50,7 +50,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
     return response
 
 
-async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken, db, device_fingerprint) -> Response:
+async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken, db, device_fingerprint: RawFingerPrint) -> Response:
     try:
         yandex_user_info = await YandexOAuthService.get_user_info(yandex_access_token.token)
         logger.info("Successfully retrieved user info from Yandex")
@@ -60,7 +60,7 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
 
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
     user = User.create_or_update_oauth_user(db, oauth_user_data)
-    authentication = user.authenticate_oauth(device_fingerprint)
+    authentication = user.authenticate_oauth(device_fingerprint.to_fingerprint())  # Maybe to be better use schema
 
     logger.info("Yandex user authenticated successfully")
     return create_auth_response(authentication)
@@ -129,7 +129,7 @@ def register_routes(router: APIRouter):
         504: {"model": OAuthServerErrorSchema}
     })
     async def auth_yandex_callback_post(
-            request: Request,
+            device_fingerprint: Annotated[RawFingerPrint, Header()],
             yandex_access_token: YandexAccessToken,
             db: Session = Depends(get_db_session)
     ) -> Response:
@@ -137,7 +137,6 @@ def register_routes(router: APIRouter):
         Route for handling Yandex OAuth callback (POST).
         """
         logger.info("Received Yandex OAuth POST callback request")
-        device_fingerprint = get_device_fingerprint(request)
         return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
@@ -146,7 +145,7 @@ def register_routes(router: APIRouter):
         504: {"model": OAuthServerErrorSchema}
     })
     async def auth_yandex_callback_get(
-            request: Request,
+            device_fingerprint: Annotated[RawFingerPrint, Header()],
             query_params: YandexCallbackQueryParams = Depends(),
             db: Session = Depends(get_db_session)
     ) -> Response:
@@ -154,7 +153,6 @@ def register_routes(router: APIRouter):
         Route for handling Yandex OAuth callback (GET).
         """
         logger.info("Received Yandex OAuth GET callback request")
-        device_fingerprint = get_device_fingerprint(request)
 
         if query_params.token is None:
             try:
