@@ -20,7 +20,7 @@ class YandexOAuthService:
         Exchange authorization code for access token from Yandex.
 
         Args:
-            auth_code (int): Authorization code received from Yandex.
+            auth_code (str): Authorization code received from Yandex.
 
         Returns:
             str: Access token received from Yandex.
