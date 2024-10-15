@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token/form")
 
 
-def get_device_fingerprint(request: Request) -> str:
+def get_device_fingerprint(request: Request) -> str:  # DEPRECATED
     """Generates a device fingerprint based on the User-Agent and Accept-Language headers."""
     user_agent = request.headers.get('User-Agent')
     if not user_agent:

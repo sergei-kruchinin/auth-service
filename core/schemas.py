@@ -87,6 +87,38 @@ class AuthTokens(BaseModel):
     tokens: Dict[str, TokenData]
 
 
+class RawFingerPrint(BaseModel):
+    user_agent: str | None
+    accept_language: str | None
+
+    @model_validator(mode='before')
+    def no_user_agent_or_language(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        If user agent is not presented sets it to unknown
+
+        Args:
+            values (dict): The values received for model fields.
+
+        Returns:
+            dict: The original values if validation passes.
+        """
+
+        user_agent = values.get('user_agent')
+        accept_language = values.get('accept_language')
+
+        if user_agent is None:
+            # logger.warning("User-Agent header is missing")
+            values["user_agent"] = "unknown"
+        if accept_language is None:
+            # logger.warning("Access_Language header is missing")
+            values["accept_language"] = "unknown"
+        return values
+
+    def to_fingerprint(self) -> str:
+        """Generates a device fingerprint based on the User-Agent and Accept-Language headers."""
+        return f"{self.user_agent}:{self.accept_language}"
+
+
 class AuthRequest(BaseModel):
     username: constr(min_length=3, strip_whitespace=True) = Field(
         ..., description="The username of the user"
@@ -95,11 +127,12 @@ class AuthRequest(BaseModel):
         ..., description="The plaintext password of the user"
     )
 
-    def to_fingerprinted(self, fingerprint: str) -> 'AuthRequestFingerPrinted':
+    def to_fingerprinted(self, raw_fingerprint: RawFingerPrint) -> 'AuthRequestFingerPrinted':
         return AuthRequestFingerPrinted(
             username=self.username,
             password=self.password,
-            device_fingerprint=fingerprint)
+            device_fingerprint=raw_fingerprint.to_fingerprint()
+        )
 
 
 class AuthRequestFingerPrinted(AuthRequest):

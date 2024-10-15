@@ -1,6 +1,7 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, Header
+from typing import Annotated
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
@@ -75,15 +76,16 @@ def register_routes(router: APIRouter):
     )
     async def token_json(
             auth_request: AuthRequest,
-            request: Request,
+            device_fingerprint: Annotated[RawFingerPrint, Header()],
             db: Session = Depends(get_db_session)
     ) -> Response:
         """
         Route for authenticating a user.
         """
         logger.info("Auth json route called")
+
         try:
-            device_fingerprint = get_device_fingerprint(request)
+            logger.info(f"DEVICE:{device_fingerprint}")
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
             authentication = User.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
