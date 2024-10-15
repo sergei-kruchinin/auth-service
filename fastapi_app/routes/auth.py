@@ -1,7 +1,7 @@
 # fastapi_app > routes > auth.py
 
 from fastapi import APIRouter, Depends, Request, Response, Header
-from typing import Annotated
+from typing import Annotated, Optional
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
@@ -50,7 +50,8 @@ def create_auth_response(authentication: AuthTokens) -> Response:
     return response
 
 
-async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken, db, device_fingerprint: RawFingerPrint) -> Response:
+async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
+                                         db, device_fingerprint: RawFingerPrint) -> Response:
     try:
         yandex_user_info = await YandexOAuthService.get_user_info(yandex_access_token.token)
         logger.info("Successfully retrieved user info from Yandex")

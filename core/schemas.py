@@ -88,8 +88,8 @@ class AuthTokens(BaseModel):
 
 
 class RawFingerPrint(BaseModel):
-    user_agent: str | None
-    accept_language: str | None
+    user_agent: str | None = None
+    accept_language: str | None = None
 
     @model_validator(mode='before')
     def no_user_agent_or_language(cls, values: Dict[str, Any]) -> Dict[str, Any]:
