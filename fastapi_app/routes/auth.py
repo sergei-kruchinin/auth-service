@@ -85,7 +85,6 @@ def register_routes(router: APIRouter):
         logger.info("Auth json route called")
 
         try:
-            logger.info(f"DEVICE:{device_fingerprint}")
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
             authentication = User.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
@@ -102,7 +101,7 @@ def register_routes(router: APIRouter):
             400: {"model": InsufficientAuthDataError}
         })
     async def token_form(
-                request: Request,
+                device_fingerprint: Annotated[RawFingerPrint, Header()],
                 form_data: OAuth2PasswordRequestForm = Depends(),
                 db: Session = Depends(get_db_session)
     ) -> Response:
@@ -112,7 +111,6 @@ def register_routes(router: APIRouter):
 
         logger.info("Auth form route called")
         try:
-            device_fingerprint = get_device_fingerprint(request)
             username = form_data.username
             password = form_data.password
             auth_request = AuthRequest(username=username, password=password)
