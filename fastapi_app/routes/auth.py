@@ -10,8 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from core.schemas import *
 from core.schemas_exceptions import *
 from core.models.user import User
-from fastapi_app.routes.dependencies import (get_db_session, token_required, get_device_fingerprint,
-                                             get_yandex_uri)
+from fastapi_app.routes.dependencies import (get_db_session, token_required, get_yandex_uri)
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenService
