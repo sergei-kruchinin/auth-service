@@ -169,11 +169,6 @@ def register_routes(router: APIRouter):
     async def auth_yandex_by_code() -> Response:
         """
         Route for generating Yandex OAuth authorization URI.
-
-        Method: GET
-
-        Returns:
-        200: JSON containing the iframe URI
         """
 
         logger.info("Yandex OAuth by code called")
@@ -189,10 +184,6 @@ def register_routes(router: APIRouter):
     ) -> Response:
         """
         Route for verifying an authentication token.
-
-        Headers:
-
-            - Authorization: Bearer <token>
 
         """
         logger.info(f"Verify route called: {verification}")
@@ -212,13 +203,6 @@ def register_routes(router: APIRouter):
         """
         Route for logging out a user and invalidating the token.
 
-        Method: POST
-
-        Headers:
-        - Authorization: Bearer <token>
-
-        Returns:
-        200: {'success': True, 'message': <message>}
         """
         # Till @token_required(notify_on_failure=True) be implemented,
         # by now it not be executed. @token_required on not authenticated raises exception 401
@@ -249,6 +233,7 @@ def register_routes(router: APIRouter):
         Method: POST
 
         Headers:
+
         - Authorization: Bearer <admin_token>
 
         Request body (JSON):
@@ -302,6 +287,7 @@ def register_routes(router: APIRouter):
         Method: GET
 
         Headers:
+
         - Authorization: Bearer <admin_token>
 
         Returns:
