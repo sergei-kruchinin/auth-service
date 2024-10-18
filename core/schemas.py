@@ -122,7 +122,7 @@ class RawFingerPrint(BaseModel):
 
 
 class AuthorizationHeaders(RawFingerPrint):
-    authorization: str | None
+    authorization: str | None = None
 
     def token(self) -> str:
         prefix = 'Bearer '

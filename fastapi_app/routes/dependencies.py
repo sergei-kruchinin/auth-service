@@ -24,7 +24,8 @@ def get_db_session():
         db.close()
 
 
-async def token_required(authorization: Annotated[AuthorizationHeaders, Header()]):
+async def token_required(authorization: Annotated[AuthorizationHeaders, Header()],
+                         _: oauth2_scheme = Depends(oauth2_scheme)):
     """Dependency to verify the presence and validity of a Bearer token in the request headers."""
     logger.info("TOKEN_REQUIRED called")
     token = authorization.token()
