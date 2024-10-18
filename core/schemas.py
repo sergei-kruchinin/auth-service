@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict
 from typing import Dict, Any, List
 
-from core.exceptions import InvalidOauthGetParams
+from core.exceptions import InvalidOauthGetParams, HeaderNotSpecifiedError
 
 
 # === Response Models
@@ -87,6 +87,8 @@ class AuthTokens(BaseModel):
     tokens: Dict[str, TokenData]
 
 
+
+
 class RawFingerPrint(BaseModel):
     user_agent: str | None = None
     accept_language: str | None = None
@@ -117,6 +119,23 @@ class RawFingerPrint(BaseModel):
     def to_fingerprint(self) -> str:
         """Generates a device fingerprint based on the User-Agent and Accept-Language headers."""
         return f"{self.user_agent}:{self.accept_language}"
+
+
+class AuthorizationHeaders(RawFingerPrint):
+    authorization: str | None
+
+    def token(self) -> str:
+        prefix = 'Bearer '
+        if not self.authorization or not self.authorization.startswith(prefix):
+            # logger.error("Authorization header missing or does not start with 'Bearer '")
+            raise HeaderNotSpecifiedError('Header not specified or prefix not supported.')
+
+        token = self.authorization[len(prefix):]
+
+        if not token:
+            # logger.error("Authorization header missing or does not start with 'Bearer '")
+            raise HeaderNotSpecifiedError("Invalid authorization code.") #401
+        return token
 
 
 class AuthRequest(BaseModel):

@@ -7,13 +7,14 @@ from typing import Annotated
 import os
 import logging
 from core.models import get_db
-from core.schemas import RawFingerPrint
+from core.schemas import RawFingerPrint, AuthorizationHeaders
 from core.exceptions import *
 
 
 logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token/form")
+
 
 def get_db_session():
     db = next(get_db())
@@ -23,15 +24,13 @@ def get_db_session():
         db.close()
 
 
-async def token_required(device_fingerprint: Annotated[RawFingerPrint, Header()],
-                         token: str = Depends(oauth2_scheme)):
+async def token_required(authorization: Annotated[AuthorizationHeaders, Header()]):
     """Dependency to verify the presence and validity of a Bearer token in the request headers."""
-    if not token:
-        logger.error("Authorization header missing or does not start with 'Bearer '")
-        raise HTTPException(status_code=401, detail="Invalid authorization code.")
+    logger.info("TOKEN_REQUIRED called")
+    token = authorization.token()
 
     try:
-        verification = TokenService.verify_token(token, device_fingerprint.to_fingerprint())
+        verification = TokenService.verify_token(token, authorization.to_fingerprint())
         return verification
     except TokenBlacklisted as e:
         logger.warning(f"Token invalidated. Get new one: {str(e)}")
