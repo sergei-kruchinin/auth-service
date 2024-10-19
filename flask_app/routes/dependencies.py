@@ -3,11 +3,12 @@
 from functools import wraps
 from flask import request
 import logging
-from core.token_service import TokenService
 import os
+from contextlib import contextmanager
+from core.token_service import TokenService
 from core.models import get_db
 from core.exceptions import *
-from contextlib import contextmanager
+from core.schemas import AuthorizationHeaders
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +71,15 @@ def token_required(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        device_fingerprint = get_device_fingerprint()
         authorization_header = request.headers.get('authorization')
-        prefix = 'Bearer '
-        if not authorization_header or not authorization_header.startswith(prefix):
-            logger.error("Authorization header missing or does not start with 'Bearer '")
-            raise HeaderNotSpecifiedError('Header not specified or prefix not supported.')
-
-        token = authorization_header[len(prefix):]
+        user_agent = request.headers.get('user_agent')
+        accept_language = request.headers.get('accept_language')
+        authorization = AuthorizationHeaders(
+                                             user_agent=user_agent,
+                                             accept_language=accept_language,
+                                             authorization=authorization_header)
+        device_fingerprint = authorization.to_fingerprint()
+        token = authorization.token()
         try:
             verification = TokenService.verify_token(token, device_fingerprint)
             # verification.success = True   #  not need: success already is True

@@ -87,8 +87,6 @@ class AuthTokens(BaseModel):
     tokens: Dict[str, TokenData]
 
 
-
-
 class RawFingerPrint(BaseModel):
     user_agent: str | None = None
     accept_language: str | None = None
