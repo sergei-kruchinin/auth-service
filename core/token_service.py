@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import redis
 
-from .schemas import TokenPayload, TokenData, TokenVerification
+from .schemas import TokenPayload, TokenData, TokenVerification, TokenFingerPrinted
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 from redis import Redis, RedisError
 from enum import Enum
@@ -137,7 +137,7 @@ class TokenService:
             raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
     @staticmethod
-    def verify_token(token: str, device_fingerprint: str) -> TokenVerification:
+    def verify_token(token: TokenFingerPrinted) -> TokenVerification:
         """
         Verify a JWT token, ensuring it is not expired or blacklisted.
 
@@ -146,10 +146,10 @@ class TokenService:
         with the specified fingerprint.
 
         Args:
-            token (str): The JWT token to be verified.
-            device_fingerprint (str): The fingerprint of the device attempting to use
-                                      the token. This is used to ensure the token is
-                                      being used on the same device it was issued to.
+            token (TokenFingerPrinted): The JWT token with fingerprint to be verified.
+                                        The fingerprint of the device attempting to use
+                                        the token. This is used to ensure the token is
+                                        being used on the same device it was issued to.
 
         Returns:
             TokenVerification: The token and expiration with decoded payload of the token if valid, containing user data
@@ -161,18 +161,18 @@ class TokenService:
             TokenInvalid: If the token is invalid or if the device fingerprint does not match.
         """
 
-        logger.info(f"Verifying token: {token}")
-        if TokenService.is_blacklisted(token):
+        logger.info(f"Verifying token: {token.value}")
+        if TokenService.is_blacklisted(token.value):
             raise TokenBlacklisted("Token invalidated. Get new one")
         try:
-            decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
-            token_payload = TokenPayload(**decoded)
-            if token_payload.device_fingerprint != device_fingerprint:
+            decoded = jwt.decode(token.value, AUTH_SECRET, algorithms=['HS256'])
+            token_payload = TokenPayload(**decoded)  # TODO: , token.value INSTEAD OF down...
+            if token_payload.device_fingerprint != token.device_fingerprint:
                 logger.warning("Device fingerprint does not match")
                 raise TokenInvalid("Device fingerprint does not match")
             logger.info("Token successfully verified")
             # token_verification = TokenVerification(access_token=token, **token_payload.dict())
-            token_verification=token_payload.to_response(access_token=token)
+            token_verification = token_payload.to_response(access_token=token.value)
             return token_verification
         except jwt.ExpiredSignatureError:
             logger.warning("Token expired")

@@ -32,7 +32,7 @@ async def token_required(authorization: Annotated[AuthorizationHeaders, Header()
     # token = authorization.token() # I like this method more than use OAuth2PasswordBearer but now...
 
     try:
-        verification = TokenService.verify_token(token, authorization.to_fingerprint())
+        verification = TokenService.verify_token(authorization.to_token_fingerprinted())
         return verification
     except TokenBlacklisted as e:
         logger.warning(f"Token invalidated. Get new one: {str(e)}")

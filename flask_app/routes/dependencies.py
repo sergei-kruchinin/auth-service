@@ -88,10 +88,10 @@ def token_required(f):
                                              user_agent=user_agent,
                                              accept_language=accept_language,
                                              authorization=authorization_header)
-        device_fingerprint = authorization.to_fingerprint()
-        token = authorization.token()
+        # device_fingerprint = authorization.to_fingerprint()
+        # token = authorization.token()
         try:
-            verification = TokenService.verify_token(token, device_fingerprint)
+            verification = TokenService.verify_token(authorization.to_token_fingerprinted())
         except TokenBlacklisted as e:
             logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e
