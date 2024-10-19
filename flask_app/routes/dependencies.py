@@ -13,26 +13,6 @@ from core.schemas import AuthorizationHeaders, RawFingerPrint
 logger = logging.getLogger(__name__)
 
 
-def get_device_fingerprint() -> str:
-    """Generates a device fingerprint based on the User-Agent and Accept-Language headers.
-
-    This function extracts the User-Agent and Accept-Language headers from
-    the incoming HTTP request and combines them to create a unique fingerprint
-    for the device. If the User-Agent header is missing, a warning is logged.
-
-    Returns:
-        str: A string representing the device fingerprint, composed of
-        the User-Agent and Accept-Language headers separated by a colon.
-    """
-    user_agent = request.headers.get('User-Agent')
-    if not user_agent:
-        logger.warning("User-Agent header is missing")
-        user_agent = "unknown"
-
-    accept_language = request.headers.get('Accept-Language', 'unknown')
-    return f"{user_agent}:{accept_language}"
-
-
 @contextmanager
 def get_db_session():
     db = next(get_db())
@@ -49,24 +29,20 @@ def with_db(f):
             return f(*args, **kwargs, db=db)
     return decorated
 
+
 def fingerprint_required(f):
     """
-    Decorator to verify the presence and validity of a Bearer token in the request headers.
+    Generates a device fingerprint based on the User-Agent and Accept-Language headers.
 
-    This decorator checks for an 'Authorization' header with the prefix 'Bearer '.
-    If the token is valid, it passes the token and verification result to the decorated function.
+    This function extracts the User-Agent and Accept-Language headers from
+    the incoming HTTP request and combines them to create a unique fingerprint
+    for the device. Then running function f with device_fingerprint.
 
     Args:
         f (function): The function to be decorated.
 
-    Raises:
-        HeaderNotSpecifiedError: If the authorization header is not specified or does not start with 'Bearer '.
-        TokenBlacklisted: If the token has been invalidated.
-        TokenExpired: If the token has expired.
-        TokenInvalid: If the token is invalid.
-
     Returns:
-        function: The wrapped function with token and verification parameters added.
+        function: The wrapped function with device_fingerprint parameter added.
     """
 
     @wraps(f)

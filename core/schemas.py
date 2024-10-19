@@ -115,7 +115,20 @@ class RawFingerPrint(BaseModel):
         return values
 
     def to_fingerprint(self) -> str:
-        """Generates a device fingerprint based on the User-Agent and Accept-Language headers."""
+        """
+        Generates a device fingerprint based on the User-Agent and Accept-Language headers.
+
+        This function extracts the User-Agent and Accept-Language headers from
+        the incoming HTTP request and combines them to create a unique fingerprint
+        for the device.
+
+        Returns:
+            str: A string representing the device fingerprint, composed of
+            the User-Agent and Accept-Language headers separated by a colon.
+
+        """
+
+        # TODO If the User-Agent header is missing, a warning is logged
         return f"{self.user_agent}:{self.accept_language}"
 
 
