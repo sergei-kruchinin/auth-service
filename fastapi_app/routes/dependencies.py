@@ -25,10 +25,11 @@ def get_db_session():
 
 
 async def token_required(authorization: Annotated[AuthorizationHeaders, Header()],
-                         _: str = Depends(oauth2_scheme)):
+                         token: str = Depends(oauth2_scheme)):
     """Dependency to verify the presence and validity of a Bearer token in the request headers."""
     logger.info("TOKEN_REQUIRED called")
-    token = authorization.token()
+
+    # token = authorization.token() # I like this method more than use OAuth2PasswordBearer but now...
 
     try:
         verification = TokenService.verify_token(token, authorization.to_fingerprint())
