@@ -5,11 +5,12 @@ import os
 from datetime import datetime, timezone, timedelta
 import logging
 import redis
+from redis import Redis, RedisError
+from enum import Enum
 
 from .schemas import TokenPayload, TokenData, TokenVerification, TokenFingerPrinted
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
-from redis import Redis, RedisError
-from enum import Enum
+
 
 AUTH_SECRET = os.getenv('AUTH_SECRET')
 print('AUTH_SECRET:', AUTH_SECRET)

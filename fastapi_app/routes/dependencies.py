@@ -2,10 +2,11 @@
 
 from fastapi import Depends, HTTPException, Header
 from fastapi.security import OAuth2PasswordBearer
-from core.token_service import TokenService
 from typing import Annotated
 import os
 import logging
+
+from core.token_service import TokenService
 from core.models import get_db
 from core.schemas import AuthorizationHeaders
 from core.exceptions import *

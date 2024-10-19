@@ -3,9 +3,11 @@
 import base64
 import requests
 import os
-from .schemas import YandexUserInfo, OAuthUserCreateSchema
 from pydantic import ValidationError
 import logging
+
+from .schemas import YandexUserInfo, OAuthUserCreateSchema
+
 logger = logging.getLogger(__name__)
 
 

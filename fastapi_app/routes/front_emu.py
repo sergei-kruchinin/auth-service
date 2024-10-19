@@ -3,11 +3,12 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from .dependencies import get_yandex_uri
 import requests
 import markdown
 import os
 import logging
+
+from .dependencies import get_yandex_uri
 
 logger = logging.getLogger(__name__)
 
