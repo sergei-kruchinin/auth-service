@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from core.token_service import TokenService
 from core.models import get_db
 from core.exceptions import *
-from core.schemas import AuthorizationHeaders
+from core.schemas import AuthorizationHeaders, RawFingerPrint
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,40 @@ def with_db(f):
             return f(*args, **kwargs, db=db)
     return decorated
 
+def fingerprint_required(f):
+    """
+    Decorator to verify the presence and validity of a Bearer token in the request headers.
+
+    This decorator checks for an 'Authorization' header with the prefix 'Bearer '.
+    If the token is valid, it passes the token and verification result to the decorated function.
+
+    Args:
+        f (function): The function to be decorated.
+
+    Raises:
+        HeaderNotSpecifiedError: If the authorization header is not specified or does not start with 'Bearer '.
+        TokenBlacklisted: If the token has been invalidated.
+        TokenExpired: If the token has expired.
+        TokenInvalid: If the token is invalid.
+
+    Returns:
+        function: The wrapped function with token and verification parameters added.
+    """
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_agent = request.headers.get('user_agent')
+        accept_language = request.headers.get('accept_language')
+        authorization = RawFingerPrint(
+                                       user_agent=user_agent,
+                                       accept_language=accept_language,
+                                       )
+        device_fingerprint = authorization.to_fingerprint()
+
+        return f(device_fingerprint=device_fingerprint, *args, **kwargs)
+
+    return decorated
+
 
 def token_required(f):
     """
@@ -82,7 +116,6 @@ def token_required(f):
         token = authorization.token()
         try:
             verification = TokenService.verify_token(token, device_fingerprint)
-            # verification.success = True   #  not need: success already is True
         except TokenBlacklisted as e:
             logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e

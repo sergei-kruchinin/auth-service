@@ -53,8 +53,9 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 def register_routes(bp: Blueprint):
     @bp.route("/auth/token/json", methods=["POST"])
+    @fingerprint_required
     @with_db
-    def auth(db: Session) -> Response:
+    def auth(device_fingerprint: str, db: Session) -> Response:
         """
         Route for authenticating a user.
 
@@ -74,7 +75,7 @@ def register_routes(bp: Blueprint):
             json_data = request.get_json()
             if not json_data:
                 raise NoDataProvided('No input data provided')
-            device_fingerprint = get_device_fingerprint()
+            # device_fingerprint = get_device_fingerprint()
             json_data["device_fingerprint"] = device_fingerprint
             auth_request = AuthRequestFingerPrinted(**json_data)
             authentication = User.authenticate(db, auth_request)
@@ -90,7 +91,8 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/auth/token/yandex/callback", methods=["POST", "GET"])
     @with_db
-    def auth_yandex_callback(db: Session) -> Response:
+    @fingerprint_required
+    def auth_yandex_callback(device_fingerprint: str, db: Session) -> Response:
         """
         Route for handling Yandex OAuth callback.
 
@@ -105,7 +107,7 @@ def register_routes(bp: Blueprint):
         503: If there's an OAuth or user data retrieval error
         """
         logger.info("Received Yandex OAuth callback request")
-        device_fingerprint = get_device_fingerprint()
+        # device_fingerprint = get_device_fingerprint()
         if request.method == 'POST':
             # In POST requests, we always receive the token.
             access_token = request.json.get('token')
