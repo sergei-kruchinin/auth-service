@@ -145,8 +145,11 @@ class AuthorizationHeaders(RawFingerPrint):
 
         if not token:
             # logger.error("Authorization header missing or does not start with 'Bearer '")
-            raise HeaderNotSpecifiedError("Invalid authorization code.") #401
+            raise HeaderNotSpecifiedError("Invalid authorization code.")  # 401
         return token
+
+    def to_token_fingerprinted(self) -> 'TokenFingerPrinted':
+        return TokenFingerPrinted(value=self.token(), device_fingerprint=self.to_fingerprint())
 
 
 class AuthRequest(BaseModel):
@@ -165,15 +168,23 @@ class AuthRequest(BaseModel):
         )
 
 
-class AuthRequestFingerPrinted(AuthRequest):
+class DeviceFingerprintValue(BaseModel):
+    device_fingerprint: str = Field(
+        ..., description="The fingerprint of the user's device")
+
+
+class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue):
     username: constr(min_length=3, strip_whitespace=True) = Field(
         ..., description="The username of the user"
     )
     password: constr(min_length=8, strip_whitespace=True) = Field(
         ..., description="The plaintext password of the user"
     )
-    device_fingerprint: str = Field(
-        ..., description="The fingerprint of the user's device")
+
+
+# TODO Use that:
+class TokenFingerPrinted(TokenValue, DeviceFingerprintValue):
+    pass
 
 
 # === OAuth Token Schemas ===

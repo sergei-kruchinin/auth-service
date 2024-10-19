@@ -125,4 +125,3 @@ def test_get_users(get_admin_token):
     data = response.json()
     assert isinstance(data['users'], list), "Expected data to be a list"
     assert len(data['users']) > 0, "Expected at least one user"
-
