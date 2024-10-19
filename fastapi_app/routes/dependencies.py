@@ -1,13 +1,13 @@
 # fastapi_app > routes > dependencies.py
 
-from fastapi import Depends, HTTPException, Request, Header
+from fastapi import Depends, HTTPException, Header
 from fastapi.security import OAuth2PasswordBearer
 from core.token_service import TokenService
 from typing import Annotated
 import os
 import logging
 from core.models import get_db
-from core.schemas import RawFingerPrint, AuthorizationHeaders
+from core.schemas import AuthorizationHeaders
 from core.exceptions import *
 
 
@@ -25,7 +25,7 @@ def get_db_session():
 
 
 async def token_required(authorization: Annotated[AuthorizationHeaders, Header()],
-                         _: oauth2_scheme = Depends(oauth2_scheme)):
+                         _: str = Depends(oauth2_scheme)):
     """Dependency to verify the presence and validity of a Bearer token in the request headers."""
     logger.info("TOKEN_REQUIRED called")
     token = authorization.token()
