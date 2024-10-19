@@ -108,8 +108,9 @@ flask_auth_service/
 │   ├── exceptions.py
 │   ├── yandex_oauth.py
 │   ├── yandex_oauth_async.py
-│   └── schemas.py
-├── flask_app/
+│   ├── schemas.py
+│   └── schemas_exceptions.py
+├── fastapi_app/
 │   ├── __init__.py
 │   ├── app.py
 │   ├── error_handlers.py
@@ -118,7 +119,7 @@ flask_auth_service/
 │       ├── auth.py
 │       ├── dependencies.py
 │       └── front_emu.py
-├── fastapi_app/
+├── flask_app/
 │   ├── __init__.py
 │   ├── app.py
 │   ├── error_handlers.py
