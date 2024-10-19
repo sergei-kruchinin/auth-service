@@ -148,8 +148,13 @@ class AuthorizationHeaders(RawFingerPrint):
             raise HeaderNotSpecifiedError("Invalid authorization code.")  # 401
         return token
 
-    def to_token_fingerprinted(self) -> 'TokenFingerPrinted':
-        return TokenFingerPrinted(value=self.token(), device_fingerprint=self.to_fingerprint())
+    def to_token_fingerprinted(self, token: str = None) -> 'TokenFingerPrinted':
+        # token may be set by OAuth2PasswordBearer(tokenUrl="auth/token/form") or
+        # we get it from header by ourself
+        # We need it why use OAuth2PasswordBearer to prevent double getting it from header
+        if token is None:
+            token = self.token()
+        return TokenFingerPrinted(value=token, device_fingerprint=self.to_fingerprint())
 
 
 class AuthRequest(BaseModel):
