@@ -66,30 +66,8 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
     return create_auth_response(authentication)
 
 
-# TODO move to dependencies ? or better
-# TODO move to RawFingerPrint (and think about ip storing in witch class)
-def get_client_ip(
-    x_forwarded_for: str = Header(None),
-    x_real_ip: str = Header(None),
-    host: str = Header('127.0.0.1')
-) -> str:
-    if x_forwarded_for:
-        # Client is behind a proxy
-        ip = x_forwarded_for.split(",")[0].strip()
-        # conn_type = 'proxy'
-    else:
-        # Direct connection
-        ip = x_real_ip or host
-        # conn_type = 'direct'
-    return ip
-
-
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
-
-    @auth_router.get("/get_client_ip")
-    async def read_client_ip(client_ip: str = Depends(get_client_ip)):
-        return {"client_ip": client_ip}
 
     @auth_router.post("/token/json", response_model=TokenDataResponse, responses={
         401: {"model": ResponseAuthenticationError},
@@ -99,13 +77,13 @@ def register_routes(router: APIRouter):
     async def token_json(
             auth_request: AuthRequest,
             device_fingerprint: Annotated[RawFingerPrint, Header()],
-            client_ip: str = Depends(get_client_ip),
             db: Session = Depends(get_db_session)
     ) -> Response:
         """
         Route for authenticating a user.
         """
-        logger.info("Auth json route called")
+        ip = device_fingerprint.ip()
+        logger.info(f"Auth json route called from {ip}")
 
         try:
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
@@ -120,7 +98,7 @@ def register_routes(router: APIRouter):
 
         session_data = UserSessionData(
             user_id=0, # user_id,
-            ip_address=client_ip,
+            ip_address=ip,
             user_agent=device_fingerprint.user_agent,
             accept_language=device_fingerprint.accept_language,
             refresh_token=authentication.tokens[TokenType.REFRESH.value].value,
@@ -143,7 +121,7 @@ def register_routes(router: APIRouter):
         Route for authenticating a user by post form (for swagger).
         """
 
-        logger.info("Auth form route called")
+        logger.info("Auth form route called ")
         try:
             username = form_data.username
             password = form_data.password

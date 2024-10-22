@@ -90,6 +90,9 @@ class AuthTokens(BaseModel):
 class RawFingerPrint(BaseModel):
     user_agent: str | None = None
     accept_language: str | None = None
+    x_forwarded_for: str | None = None
+    x_real_ip: str | None = None
+    host: str | None = '127.0.0.1'
 
     @model_validator(mode='before')
     def no_user_agent_or_language(cls, values: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,6 +134,23 @@ class RawFingerPrint(BaseModel):
         # TODO If the User-Agent header is missing, a warning is logged
         return f"{self.user_agent}:{self.accept_language}"
 
+    def ip(self) -> str:
+        """
+        Get the IP from headers.
+
+        Returns:
+            str: Clients IP.
+
+        """
+        if self.x_forwarded_for:
+            # Client is behind a proxy
+            ip = self.x_forwarded_for.split(",")[0].strip()
+            # conn_type = 'proxy'
+        else:
+            # Direct connection
+            ip = self.x_real_ip or self.host
+            # conn_type = 'direct'
+        return ip
 
 class AuthorizationHeaders(RawFingerPrint):
     authorization: str | None = None
