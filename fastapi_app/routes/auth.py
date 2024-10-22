@@ -1,7 +1,7 @@
 # fastapi_app > routes > auth.py
 
-from fastapi import APIRouter, Depends, Request, Response, Header
-from typing import Annotated, Optional
+from fastapi import APIRouter, Depends, Response, Header
+from typing import Annotated
 from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
@@ -60,7 +60,7 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
 
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
     user = User.create_or_update_oauth_user(db, oauth_user_data)
-    authentication = user.authenticate_oauth(device_fingerprint.fingerprint())  # Maybe to be better use schema
+    authentication = user.authenticate_oauth(device_fingerprint.fingerprint)  # Maybe to be better use schema
 
     logger.info("Yandex user authenticated successfully")
     return create_auth_response(authentication)
@@ -82,12 +82,12 @@ def register_routes(router: APIRouter):
         """
         Route for authenticating a user.
         """
-        ip = device_fingerprint.ip()
+        ip = device_fingerprint.ip
         logger.info(f"Auth json route called from {ip}")
 
         try:
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            #user_id,
+            # user_id,
             authentication = User.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e
@@ -97,7 +97,7 @@ def register_routes(router: APIRouter):
         logger.info("User authenticated successfully")
 
         session_data = UserSessionData(
-            user_id=0, # user_id,
+            user_id=0,  # user_id,
             ip_address=ip,
             user_agent=device_fingerprint.user_agent,
             accept_language=device_fingerprint.accept_language,
