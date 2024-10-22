@@ -60,7 +60,7 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
 
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
     user = User.create_or_update_oauth_user(db, oauth_user_data)
-    authentication = user.authenticate_oauth(device_fingerprint.to_fingerprint())  # Maybe to be better use schema
+    authentication = user.authenticate_oauth(device_fingerprint.fingerprint())  # Maybe to be better use schema
 
     logger.info("Yandex user authenticated successfully")
     return create_auth_response(authentication)

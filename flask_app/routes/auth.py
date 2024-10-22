@@ -5,7 +5,7 @@ from pydantic import ValidationError
 import logging
 from sqlalchemy.orm import Session
 
-from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification
+from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, FingerPrint
 from core.models.user import *
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
@@ -17,18 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 
-
 # ### 1. User Authentication Methods: ###
 
-def get_client_ip() -> str:
-    forward_header = request.headers.get("X-Forwarded-For")
-    if forward_header:
-        # Client is beyond a proxy
-        ip = forward_header.split(",")[0].strip()
-    else:
-        # Direct connection
-        ip = request.remote_addr
-    return ip
 
 def create_auth_response(authentication: AuthTokens) -> Response:
     """
@@ -65,12 +55,10 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 def register_routes(bp: Blueprint):
 
-
-
     @bp.route("/auth/token/json", methods=["POST"])
     @fingerprint_required
     @with_db
-    def auth(device_fingerprint: str, db: Session) -> Response:
+    def auth(device_fingerprint: FingerPrint, db: Session) -> Response:
         """
         Route for authenticating a user.
 
@@ -85,13 +73,13 @@ def register_routes(bp: Blueprint):
         400: If no data is provided
         401: For invalid username/password
         """
-        ip = get_client_ip()
+        ip = device_fingerprint.ip
         logger.info(f"Auth route called from {ip}")
         try:
             json_data = request.get_json()
             if not json_data:
                 raise NoDataProvided('No input data provided')
-            json_data["device_fingerprint"] = device_fingerprint
+            json_data["device_fingerprint"] = device_fingerprint.fingerprint
             auth_request = AuthRequestFingerPrinted(**json_data)
             authentication = User.authenticate(db, auth_request)
 
@@ -107,7 +95,7 @@ def register_routes(bp: Blueprint):
     @bp.route("/auth/token/yandex/callback", methods=["POST", "GET"])
     @with_db
     @fingerprint_required
-    def auth_yandex_callback(device_fingerprint: str, db: Session) -> Response:
+    def auth_yandex_callback(device_fingerprint: FingerPrint, db: Session) -> Response:
         """
         Route for handling Yandex OAuth callback.
 
@@ -121,8 +109,8 @@ def register_routes(bp: Blueprint):
         200: JSON containing authentication token
         503: If there's an OAuth or user data retrieval error
         """
-        logger.info("Received Yandex OAuth callback request")
-        # device_fingerprint = get_device_fingerprint()
+        ip = device_fingerprint.ip
+        logger.info("fReceived Yandex OAuth callback request from {ip}")
         if request.method == 'POST':
             # In POST requests, we always receive the token.
             access_token = request.json.get('token')
@@ -159,7 +147,7 @@ def register_routes(bp: Blueprint):
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
             user = User.create_or_update_oauth_user(db, oauth_user_data)
-            authentication = user.authenticate_oauth(device_fingerprint)
+            authentication = user.authenticate_oauth(device_fingerprint.fingerprint)
         except DatabaseError as e:
             logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
             raise DatabaseError(f"There was an error while syncing the user from yandex") from e
