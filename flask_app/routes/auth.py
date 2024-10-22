@@ -16,7 +16,19 @@ from core.token_service import TokenType
 logger = logging.getLogger(__name__)
 
 
+
+
 # ### 1. User Authentication Methods: ###
+
+def get_client_ip() -> str:
+    forward_header = request.headers.get("X-Forwarded-For")
+    if forward_header:
+        # Client is beyond a proxy
+        ip = forward_header.split(",")[0].strip()
+    else:
+        # Direct connection
+        ip = request.remote_addr
+    return ip
 
 def create_auth_response(authentication: AuthTokens) -> Response:
     """
@@ -52,6 +64,9 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 
 def register_routes(bp: Blueprint):
+
+
+
     @bp.route("/auth/token/json", methods=["POST"])
     @fingerprint_required
     @with_db
@@ -70,7 +85,8 @@ def register_routes(bp: Blueprint):
         400: If no data is provided
         401: For invalid username/password
         """
-        logger.info("Auth route called")
+        ip = get_client_ip()
+        logger.info(f"Auth route called from {ip}")
         try:
             json_data = request.get_json()
             if not json_data:
