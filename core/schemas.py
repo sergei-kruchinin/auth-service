@@ -196,8 +196,7 @@ class AuthRequest(BaseModel):
 
     def to_fingerprinted(self, raw_fingerprint: RawFingerPrint) -> 'AuthRequestFingerPrinted':
         return AuthRequestFingerPrinted(
-            username=self.username,
-            password=self.password,
+            **self.__dict__,
             device_fingerprint=raw_fingerprint.fingerprint()
         )
 
@@ -270,15 +269,7 @@ class UserCreateSchema(UserBaseSchema):
                | None) = Field(default=None, description="The plaintext password provided by the user or None.")
 
     def to_user_create_schema(self) -> 'UserCreateSchema':
-        return UserCreateSchema(
-            username=self.username,
-            first_name=self.first_name,
-            last_name=self.last_name,
-            is_admin=self.is_admin,
-            source=self.source,
-            oa_id=self.oa_id,
-            password=self.password
-        )
+        return UserCreateSchema(**self.__dict__)
 
 
 # === OAuth User Create Schema ===
