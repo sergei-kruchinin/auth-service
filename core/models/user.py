@@ -3,14 +3,16 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, Session
+from typing import Dict, List, Optional
+import logging
 
 from .base import Base
 from core.schemas import *
 from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from core.token_service import TokenService, TokenType
 from core.password_hash import PasswordHash
-from typing import Dict, List, Optional
-import logging
+from core.models.user_session import UserSession
+
 logger = logging.getLogger(__name__)
 
 
@@ -274,7 +276,7 @@ class User(Base):
         return AuthTokens(tokens=tokens)
 
     @classmethod
-    def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
+    def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:  # (int, AuthTokens):
         """
         Authenticate user with username and password.
 
@@ -294,7 +296,7 @@ class User(Base):
                 logger.warning(f"Authentication failed for user: {auth_request.username}")
                 raise AuthenticationError('Invalid username or invalid password')
             logger.info(f"User authenticated successfully: {user.username}")
-
+            #     user.id,
             return user.__generate_auth_response(auth_request.device_fingerprint)
 
         except SQLAlchemyError as e:

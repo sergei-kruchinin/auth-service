@@ -66,8 +66,30 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
     return create_auth_response(authentication)
 
 
+# TODO move to dependencies ? or better
+# TODO move to RawFingerPrint (and think about ip storing in witch class)
+def get_client_ip(
+    x_forwarded_for: str = Header(None),
+    x_real_ip: str = Header(None),
+    host: str = Header('127.0.0.1')
+) -> str:
+    if x_forwarded_for:
+        # Client is behind a proxy
+        ip = x_forwarded_for.split(",")[0].strip()
+        # conn_type = 'proxy'
+    else:
+        # Direct connection
+        ip = x_real_ip or host
+        # conn_type = 'direct'
+    return ip
+
+
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
+
+    @auth_router.get("/get_client_ip")
+    async def read_client_ip(client_ip: str = Depends(get_client_ip)):
+        return {"client_ip": client_ip}
 
     @auth_router.post("/token/json", response_model=TokenDataResponse, responses={
         401: {"model": ResponseAuthenticationError},
@@ -77,6 +99,7 @@ def register_routes(router: APIRouter):
     async def token_json(
             auth_request: AuthRequest,
             device_fingerprint: Annotated[RawFingerPrint, Header()],
+            client_ip: str = Depends(get_client_ip),
             db: Session = Depends(get_db_session)
     ) -> Response:
         """
@@ -86,6 +109,7 @@ def register_routes(router: APIRouter):
 
         try:
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
+            #user_id,
             authentication = User.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e
@@ -93,6 +117,16 @@ def register_routes(router: APIRouter):
             raise AuthenticationError('Invalid username or password') from e
 
         logger.info("User authenticated successfully")
+
+        session_data = UserSessionData(
+            user_id=0, # user_id,
+            ip_address=client_ip,
+            user_agent=device_fingerprint.user_agent,
+            accept_language=device_fingerprint.accept_language,
+            refresh_token=authentication.tokens[TokenType.REFRESH.value].value,
+            expires_at=authentication.tokens[TokenType.REFRESH.value].expires_in)
+        # print('SESSION:', session_data)
+        # UserSession.create_session(db, session_data)
 
         return create_auth_response(authentication)
 

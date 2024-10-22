@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from requests.exceptions import SSLError, ConnectionError
 from pydantic import ValidationError
 import logging
-from fastapi.exceptions import RequestValidationError  #  for 422
+from fastapi.exceptions import RequestValidationError  # for 422
 from core.exceptions import *
 from core.schemas_exceptions import *
 
@@ -20,7 +20,7 @@ CUSTOM_ERRORS = {"POST /auth/token/json": InsufficientAuthData,
 def register_error_handlers(app: FastAPI):
 
     @app.exception_handler(400)
-    async def bad_request(request: Request, exc: Exception):
+    async def bad_request(_request: Request, exc: Exception):
         logger.error(f"400 Bad Request: Invalid JSON sent: {str(exc)}")
         return JSONResponse(
             status_code=400,
@@ -28,7 +28,7 @@ def register_error_handlers(app: FastAPI):
         )
 
     @app.exception_handler(404)
-    async def not_found(request: Request, exc: Exception):
+    async def not_found(_request: Request, exc: Exception):
         logger.warning(f"404 Not Found: Resource not found: {str(exc)}")
         return JSONResponse(
             status_code=404,
@@ -189,7 +189,6 @@ def register_error_handlers(app: FastAPI):
             errors_list = [{"msg": str(exc)}]
         error_response = InvalidOauthPostJsonSchema(detail=errors_list)
         return JSONResponse(status_code=400, content=error_response.dict())
-
 
     @app.exception_handler(OAuthServerError)
     async def oauth_server_error_occurred(request: Request, exc: OAuthServerError):
