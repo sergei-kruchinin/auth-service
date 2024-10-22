@@ -117,6 +117,7 @@ class RawFingerPrint(BaseModel):
             values["accept_language"] = "unknown"
         return values
 
+    @property
     def fingerprint(self) -> str:
         """
         Generates a device fingerprint based on the User-Agent and Accept-Language headers.
@@ -134,6 +135,7 @@ class RawFingerPrint(BaseModel):
         # TODO If the User-Agent header is missing, a warning is logged
         return f"{self.user_agent}:{self.accept_language}"
 
+    @property
     def ip(self) -> str:
         """
         Get the IP from headers.
@@ -151,14 +153,6 @@ class RawFingerPrint(BaseModel):
             ip = self.x_real_ip or self.host
             # conn_type = 'direct'
         return ip
-
-    def to_fingerprint(self) -> 'FingerPrint':
-        return FingerPrint(**self.__dict__, ip=self.ip(), fingerprint=self.fingerprint())
-
-
-class FingerPrint(RawFingerPrint):
-    ip: str
-    fingerprint: str
 
 
 class AuthorizationHeaders(RawFingerPrint):
@@ -183,7 +177,7 @@ class AuthorizationHeaders(RawFingerPrint):
         # We need it why use OAuth2PasswordBearer to prevent double getting it from header
         if token is None:
             token = self.token()
-        return TokenFingerPrinted(value=token, device_fingerprint=self.fingerprint())
+        return TokenFingerPrinted(value=token, device_fingerprint=self.fingerprint)
 
 
 class AuthRequest(BaseModel):
@@ -197,7 +191,7 @@ class AuthRequest(BaseModel):
     def to_fingerprinted(self, raw_fingerprint: RawFingerPrint) -> 'AuthRequestFingerPrinted':
         return AuthRequestFingerPrinted(
             **self.__dict__,
-            device_fingerprint=raw_fingerprint.fingerprint()
+            device_fingerprint=raw_fingerprint.fingerprint
         )
 
 

@@ -5,7 +5,7 @@ from pydantic import ValidationError
 import logging
 from sqlalchemy.orm import Session
 
-from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, FingerPrint
+from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, RawFingerPrint
 from core.models.user import *
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
@@ -16,10 +16,7 @@ from core.token_service import TokenType
 logger = logging.getLogger(__name__)
 
 
-
 # ### 1. User Authentication Methods: ###
-
-
 def create_auth_response(authentication: AuthTokens) -> Response:
     """
     Create JSON response with the access token and set the refresh token in http-only cookie.
@@ -58,7 +55,7 @@ def register_routes(bp: Blueprint):
     @bp.route("/auth/token/json", methods=["POST"])
     @fingerprint_required
     @with_db
-    def auth(device_fingerprint: FingerPrint, db: Session) -> Response:
+    def auth(device_fingerprint: RawFingerPrint, db: Session) -> Response:
         """
         Route for authenticating a user.
 
@@ -95,7 +92,7 @@ def register_routes(bp: Blueprint):
     @bp.route("/auth/token/yandex/callback", methods=["POST", "GET"])
     @with_db
     @fingerprint_required
-    def auth_yandex_callback(device_fingerprint: FingerPrint, db: Session) -> Response:
+    def auth_yandex_callback(device_fingerprint: RawFingerPrint, db: Session) -> Response:
         """
         Route for handling Yandex OAuth callback.
 

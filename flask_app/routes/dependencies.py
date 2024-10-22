@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from core.token_service import TokenService
 from core.models import get_db
 from core.exceptions import *
-from core.schemas import AuthorizationHeaders, RawFingerPrint, FingerPrint
+from core.schemas import AuthorizationHeaders, RawFingerPrint
 
 logger = logging.getLogger(__name__)
 
@@ -52,15 +52,13 @@ def fingerprint_required(f):
         x_forwarded_header = request.headers.get("X-Forwarded-For")
         x_real_ip = request.headers.get("X-Real-IP")
         host = request.remote_addr
-        authorization = RawFingerPrint(
+        device_fingerprint = RawFingerPrint(
                                        user_agent=user_agent,
                                        accept_language=accept_language,
                                        x_forwarded_header=x_forwarded_header,
                                        x_real_ip=x_real_ip,
                                        host=host
                                        )
-        device_fingerprint = authorization.to_fingerprint()
-
         return f(device_fingerprint=device_fingerprint, *args, **kwargs)
 
     return decorated
