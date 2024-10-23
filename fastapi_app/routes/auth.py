@@ -11,6 +11,7 @@ from fastapi_app.routes.dependencies import (get_db_session, token_required, get
 from core.schemas import *
 from core.schemas_exceptions import *
 from core.models.user import User
+from core.models.user import UserSession
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenService
@@ -104,7 +105,7 @@ def register_routes(router: APIRouter):
             refresh_token=authentication.tokens[TokenType.REFRESH.value].value,
             expires_at=authentication.tokens[TokenType.REFRESH.value].expires_in)
         print('SESSION:', session_data)
-        # UserSession.create_session(db, session_data)
+        UserSession.create_session(db, session_data)
 
         return create_auth_response(authentication)
 
