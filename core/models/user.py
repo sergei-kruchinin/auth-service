@@ -273,7 +273,7 @@ class User(Base):
             tokens[token_type.value] = TokenData(value=token_response.value, expires_in=token_response.expires_in)
         logger.info("Access and refresh token generates")
 
-        return AuthTokens(tokens=tokens)
+        return AuthTokens(tokens=tokens, user_id=self.id)
 
     @classmethod
     def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:  # (int, AuthTokens):

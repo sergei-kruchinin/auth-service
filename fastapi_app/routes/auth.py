@@ -97,7 +97,7 @@ def register_routes(router: APIRouter):
         logger.info("User authenticated successfully")
 
         session_data = UserSessionData(
-            user_id=0,  # user_id,
+            user_id=authentication.user_id,
             ip_address=ip,
             user_agent=device_fingerprint.user_agent,
             accept_language=device_fingerprint.accept_language,

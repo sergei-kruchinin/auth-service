@@ -84,7 +84,7 @@ class TokenVerification(TokenPayload, AccessTokenResponseValue, ResponseBase):
 
 
 class AuthTokens(BaseModel):
-    id: int | None = None
+    user_id: int | None = None
     tokens: Dict[str, TokenData]
 
 
