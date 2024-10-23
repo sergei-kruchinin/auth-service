@@ -3,7 +3,7 @@ from core.schemas import *
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, Session
-from datetime import timezone
+from datetime import timezone, timedelta
 from .base import Base
 import logging
 logger = logging.getLogger(__name__)
@@ -50,8 +50,9 @@ class UserSession(Base):
         self.user_agent = session_data.user_agent
         self.accept_language = session_data.accept_language
         self.refresh_token = session_data.refresh_token
-        self.expires_at = session_data.expires_at
+        expires_in_seconds = session_data.expires_in
 
+        self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
     def __repr__(self) -> str:
         return f'UserSession(user_id={self.user_id}, ip_address={self.ip_address})'
 

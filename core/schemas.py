@@ -76,7 +76,7 @@ class TokenData(TokenValue):
 
 
 class TokenDataResponse(AccessTokenResponseValue, SimpleSuccessResponseStatus):
-    expires_in: int
+    expires_in: int  # probably  should be expires_at ... TODO check it
 
 
 class TokenVerification(TokenPayload, AccessTokenResponseValue, ResponseBase):
@@ -392,4 +392,4 @@ class UserSessionData(BaseModel):
     user_agent: str
     accept_language: str
     refresh_token: str
-    expires_at: datetime
+    expires_in: int
