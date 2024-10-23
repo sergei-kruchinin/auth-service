@@ -103,7 +103,7 @@ def register_routes(router: APIRouter):
             accept_language=device_fingerprint.accept_language,
             refresh_token=authentication.tokens[TokenType.REFRESH.value].value,
             expires_at=authentication.tokens[TokenType.REFRESH.value].expires_in)
-        # print('SESSION:', session_data)
+        print('SESSION:', session_data)
         # UserSession.create_session(db, session_data)
 
         return create_auth_response(authentication)
