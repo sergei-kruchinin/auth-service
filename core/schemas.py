@@ -62,8 +62,9 @@ class AccessTokenResponseValue(BaseModel):
     access_token: constr(min_length=95) = Field(..., description="JWT токен")
 
 
-class TokenData(TokenValue):
+class TokenData(TokenValue): # For Access and Refresh
     expires_in: int
+    # expires_at: datetime  # Date of token expiration
 
     def to_response(self) -> 'TokenDataResponse':
         """
@@ -71,12 +72,12 @@ class TokenData(TokenValue):
         """
         return TokenDataResponse(
             access_token=self.value,
-            expires_in=self.expires_in,
+            expires_in=self.expires_in
         )
 
 
-class TokenDataResponse(AccessTokenResponseValue, SimpleSuccessResponseStatus):
-    expires_in: int  # probably  should be expires_at ... TODO check it
+class TokenDataResponse(AccessTokenResponseValue, SimpleSuccessResponseStatus):  # AccessTokenDataResponse
+    expires_in: int   # Duration in seconds until the token expires
 
 
 class TokenVerification(TokenPayload, AccessTokenResponseValue, ResponseBase):
@@ -210,7 +211,6 @@ class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue):
     )
 
 
-# TODO Use that:
 class TokenFingerPrinted(TokenValue, DeviceFingerprintValue):
     pass
 
@@ -393,3 +393,4 @@ class UserSessionData(BaseModel):
     accept_language: str
     refresh_token: str
     expires_in: int
+    # check if it possibly to work with expires_at

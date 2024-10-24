@@ -51,8 +51,8 @@ class UserSession(Base):
         self.accept_language = session_data.accept_language
         self.refresh_token = session_data.refresh_token
         expires_in_seconds = session_data.expires_in
-
         self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+        # self.expires_at = session_data.expires_at
     def __repr__(self) -> str:
         return f'UserSession(user_id={self.user_id}, ip_address={self.ip_address})'
 

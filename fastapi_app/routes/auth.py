@@ -88,7 +88,6 @@ def register_routes(router: APIRouter):
 
         try:
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            # user_id,
             authentication = User.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e

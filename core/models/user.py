@@ -270,7 +270,8 @@ class User(Base):
             logger.info(f"Generating {token_type} token")
             token_response = TokenService.generate_token(payload, token_type)
             logger.info(f"Token")
-            tokens[token_type.value] = TokenData(value=token_response.value, expires_in=token_response.expires_in)
+            tokens[token_type.value] = TokenData(value=token_response.value,
+                                                 expires_in=token_response.expires_in)
         logger.info("Access and refresh token generates")
 
         return AuthTokens(tokens=tokens, user_id=self.id)
