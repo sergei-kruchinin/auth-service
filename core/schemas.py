@@ -66,17 +66,17 @@ class TokenData(TokenValue): # For Access and Refresh
     expires_in: int
     # expires_at: datetime  # Date of token expiration
 
-    def to_response(self) -> 'TokenDataResponse':
+    def to_response(self) -> 'AccessTokenDataResponse':
         """
-        Converts TokenData to TokenDataResponse.
+        Converts TokenData to AccessTokenDataResponse.
         """
-        return TokenDataResponse(
+        return AccessTokenDataResponse(
             access_token=self.value,
             expires_in=self.expires_in
         )
 
 
-class TokenDataResponse(AccessTokenResponseValue, SimpleSuccessResponseStatus):  # AccessTokenDataResponse
+class AccessTokenDataResponse(AccessTokenResponseValue, SimpleSuccessResponseStatus):
     expires_in: int   # Duration in seconds until the token expires
 
 

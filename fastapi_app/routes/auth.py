@@ -34,7 +34,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
     access_token = authentication.tokens[TokenType.ACCESS.value]
     refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
-    # Convert access token from TokenData to TokenDataResponse
+    # Convert access token from TokenData to AccessTokenDataResponse
     response_data = access_token.to_response().dict()
     response = JSONResponse(content=response_data, status_code=200)
     # Set the refresh token in HTTP-only cookie
@@ -70,11 +70,11 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
 def register_routes(router: APIRouter):
     auth_router = APIRouter()
 
-    @auth_router.post("/token/json", response_model=TokenDataResponse, responses={
+    @auth_router.post("/token/json", response_model=AccessTokenDataResponse, responses={
         401: {"model": ResponseAuthenticationError},
         400: {"model": InsufficientAuthDataError}
         }
-    )
+                      )
     async def token_json(
             auth_request: AuthRequest,
             device_fingerprint: Annotated[RawFingerPrint, Header()],
@@ -108,7 +108,7 @@ def register_routes(router: APIRouter):
 
         return create_auth_response(authentication)
 
-    @auth_router.post("/token/form", response_model=TokenDataResponse, responses={
+    @auth_router.post("/token/form", response_model=AccessTokenDataResponse, responses={
             401: {"model": ResponseAuthenticationError},
             400: {"model": InsufficientAuthDataError}
         })
@@ -136,7 +136,7 @@ def register_routes(router: APIRouter):
 
         return create_auth_response(authentication)
 
-    @auth_router.post("/token/yandex/callback", response_model=TokenDataResponse, responses={
+    @auth_router.post("/token/yandex/callback", response_model=AccessTokenDataResponse, responses={
         400: {"model": InvalidOauthPostJsonSchema},
         504: {"model": OAuthServerErrorSchema}
     })
@@ -151,7 +151,7 @@ def register_routes(router: APIRouter):
         logger.info("Received Yandex OAuth POST callback request")
         return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
-    @auth_router.get("/token/yandex/callback", response_model=TokenDataResponse, responses={
+    @auth_router.get("/token/yandex/callback", response_model=AccessTokenDataResponse, responses={
         400: {"model": InvalidOauthGetParamsSchema},
         503: {"model": OAuthServerErrorSchema},
         504: {"model": OAuthServerErrorSchema}

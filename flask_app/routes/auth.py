@@ -32,7 +32,7 @@ def create_auth_response(authentication: AuthTokens) -> Response:
     access_token = authentication.tokens[TokenType.ACCESS.value]
     refresh_token = authentication.tokens[TokenType.REFRESH.value]
 
-    # Convert access token from TokenData to TokenDataResponse
+    # Convert access token from TokenData to AccessTokenDataResponse
     access_token_response = access_token.to_response().dict()
 
     # Create response object with access token
