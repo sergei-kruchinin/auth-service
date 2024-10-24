@@ -96,16 +96,6 @@ def register_routes(router: APIRouter):
 
         logger.info("User authenticated successfully")
 
-        session_data = UserSessionData(
-            user_id=authentication.user_id,
-            ip_address=ip,
-            user_agent=device_fingerprint.user_agent,
-            accept_language=device_fingerprint.accept_language,
-            refresh_token=authentication.tokens[TokenType.REFRESH.value].value,
-            expires_in=authentication.tokens[TokenType.REFRESH.value].expires_in)
-        print('SESSION:', session_data)
-        UserSession.create_session(db, session_data)
-
         return create_auth_response(authentication)
 
     @auth_router.post("/token/form", response_model=AccessTokenDataResponse, responses={

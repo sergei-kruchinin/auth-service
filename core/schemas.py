@@ -193,13 +193,20 @@ class AuthRequest(BaseModel):
     def to_fingerprinted(self, raw_fingerprint: RawFingerPrint) -> 'AuthRequestFingerPrinted':
         return AuthRequestFingerPrinted(
             **self.__dict__,
-            device_fingerprint=raw_fingerprint.fingerprint
+            device_fingerprint=raw_fingerprint.fingerprint,
+            ip=raw_fingerprint.ip,
+            user_agent=raw_fingerprint.user_agent,
+            accept_language=raw_fingerprint.accept_language
         )
 
 
+# TODO refactor user_agent, accept_language to other class, or rename this class
 class DeviceFingerprintValue(BaseModel):
     device_fingerprint: str = Field(
         ..., description="The fingerprint of the user's device")
+    # ip: str
+    # user_agent: str
+    # accept_language: str
 
 
 class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue):
@@ -209,6 +216,9 @@ class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue):
     password: constr(min_length=8, strip_whitespace=True) = Field(
         ..., description="The plaintext password of the user"
     )
+    ip: str
+    user_agent: str
+    accept_language: str
 
 
 class TokenFingerPrinted(TokenValue, DeviceFingerprintValue):

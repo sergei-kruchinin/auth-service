@@ -248,7 +248,7 @@ class User(Base):
 
     # ### 4. Authentication Methods ###
 
-    def __generate_auth_response(self, device_fingerprint: str) -> AuthTokens:
+    def __generate_auth_response_and_save_session(self, db: Session, device_fingerprint: AuthRequestFingerPrinted) -> AuthTokens:
         """
         Generate authentication response including JWT token and its expiration time.
 
@@ -261,7 +261,7 @@ class User(Base):
             first_name=self.first_name,
             last_name=self.last_name,
             is_admin=self.is_admin,
-            device_fingerprint=device_fingerprint
+            device_fingerprint=device_fingerprint.device_fingerprint
         )
         logger.info("Generating access and refresh token")
         tokens = {}
@@ -273,6 +273,16 @@ class User(Base):
             tokens[token_type.value] = TokenData(value=token_response.value,
                                                  expires_in=token_response.expires_in)
         logger.info("Access and refresh token generates")
+
+        session_data = UserSessionData(
+            user_id=self.id,
+            ip_address=device_fingerprint.ip,
+            user_agent=device_fingerprint.user_agent,
+            accept_language=device_fingerprint.accept_language,
+            refresh_token=tokens[TokenType.REFRESH.value].value,
+            expires_in=tokens[TokenType.REFRESH.value].expires_in)
+        print('SESSION:', session_data)
+        UserSession.create_session(db, session_data)
 
         return AuthTokens(tokens=tokens, user_id=self.id)
 
@@ -298,13 +308,13 @@ class User(Base):
                 raise AuthenticationError('Invalid username or invalid password')
             logger.info(f"User authenticated successfully: {user.username}")
             #     user.id,
-            return user.__generate_auth_response(auth_request.device_fingerprint)
+            return user.__generate_auth_response_and_save_session(db, auth_request)
 
         except SQLAlchemyError as e:
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
-    def authenticate_oauth(self, device_fingerprint: str) -> AuthTokens:
+    def authenticate_oauth(self, db: Session, device_fingerprint: AuthRequestFingerPrinted) -> AuthTokens:
         """
         Authenticate OAuth user
 
@@ -313,7 +323,7 @@ class User(Base):
 
         """
         logger.debug(f"Authenticating OAuth user: {self.username}")
-        return self.__generate_auth_response(device_fingerprint)
+        return self.__generate_auth_response_and_save_session(db, device_fingerprint)
 
     # ### 5. Object Representation Methods ###
 
