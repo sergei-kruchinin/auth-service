@@ -11,7 +11,6 @@ from fastapi_app.routes.dependencies import (get_db_session, token_required, get
 from core.schemas import *
 from core.schemas_exceptions import *
 from core.models.user import User
-from core.models.user import UserSession
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenService
@@ -61,7 +60,13 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
 
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
     user = User.create_or_update_oauth_user(db, oauth_user_data)
-    authentication = user.authenticate_oauth(device_fingerprint.fingerprint)  # Maybe to be better use schema
+
+    #  TO REFACTORY
+    authentication = user.authenticate_oauth(db,
+                                             device_fingerprint.to_auth_request_fingerprinted(
+                                                 username=user.username,
+                                                 password='not used'  # TODO refactory this
+                                             ))
 
     logger.info("Yandex user authenticated successfully")
     return create_auth_response(authentication)

@@ -137,6 +137,15 @@ class RawFingerPrint(BaseModel):
         # TODO If the User-Agent header is missing, a warning is logged
         return f"{self.user_agent}:{self.accept_language}"
 
+    def to_auth_request_fingerprinted(self, username: str, password: str | None = None) -> 'AuthRequestFingerPrinted':
+        # Temporary and wired method
+        # Strongly to refactor TODO
+        return AuthRequestFingerPrinted(**self.__dict__,
+                                        username=username,
+                                        password=password,
+                                        device_fingerprint=self.fingerprint,
+                                        ip=self.ip)
+
     @property
     def ip(self) -> str:
         """
