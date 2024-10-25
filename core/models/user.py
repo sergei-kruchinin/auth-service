@@ -243,12 +243,13 @@ class User(Base):
         except DatabaseError as e:
             logger.error(f"There was an error while creating/updating the user: {str(e)}")
             raise DatabaseError(f"There was an error while creating/updating the user: {str(e)}") from e
-
         return user
 
     # ### 4. Authentication Methods ###
 
-    def __generate_auth_response_and_save_session(self, db: Session, device_fingerprint: AuthRequestFingerPrinted) -> AuthTokens:
+    def __generate_auth_response_and_save_session(self,
+                                                  db: Session,
+                                                  device_fingerprint: FingerPrintedData) -> AuthTokens:
         """
         Generate authentication response including JWT token and its expiration time.
 
@@ -287,7 +288,7 @@ class User(Base):
         return AuthTokens(tokens=tokens, user_id=self.id)
 
     @classmethod
-    def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:  # (int, AuthTokens):
+    def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
         """
         Authenticate user with username and password.
 
@@ -314,7 +315,7 @@ class User(Base):
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
-    def authenticate_oauth(self, db: Session, device_fingerprint: AuthRequestFingerPrinted) -> AuthTokens:
+    def authenticate_oauth(self, db: Session, device_fingerprint: FingerPrintedData) -> AuthTokens:
         """
         Authenticate OAuth user
 

@@ -51,23 +51,16 @@ def create_auth_response(authentication: AuthTokens) -> Response:
 
 async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
                                          db, device_fingerprint: RawFingerPrint) -> Response:
+    logger.info("Yandex user authentication process starting...")
     try:
         yandex_user_info = await YandexOAuthService.get_user_info(yandex_access_token.token)
         logger.info("Successfully retrieved user info from Yandex")
     except OAuthUserDataRetrievalError as e:
         logger.error(f'Unable to retrieve user data: {str(e)}')
         raise
-
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
     user = User.create_or_update_oauth_user(db, oauth_user_data)
-
-    #  TO REFACTORY
-    authentication = user.authenticate_oauth(db,
-                                             device_fingerprint.to_auth_request_fingerprinted(
-                                                 username=user.username,
-                                                 password='not used'  # TODO refactory this
-                                             ))
-
+    authentication = user.authenticate_oauth(db, device_fingerprint.to_fingerprinted_data())
     logger.info("Yandex user authenticated successfully")
     return create_auth_response(authentication)
 
@@ -169,7 +162,6 @@ def register_routes(router: APIRouter):
                 raise
 
         yandex_access_token = query_params.to_yandex_access_token()
-
         return await authenticate_with_yandex_token(yandex_access_token, db, device_fingerprint)
 
     @auth_router.get("/yandex/by_code", response_model=IframeUrlResponse)

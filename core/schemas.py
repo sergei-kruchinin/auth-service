@@ -137,12 +137,10 @@ class RawFingerPrint(BaseModel):
         # TODO If the User-Agent header is missing, a warning is logged
         return f"{self.user_agent}:{self.accept_language}"
 
-    def to_auth_request_fingerprinted(self, username: str, password: str | None = None) -> 'AuthRequestFingerPrinted':
-        # Temporary and wired method
-        # Strongly to refactor TODO
-        return AuthRequestFingerPrinted(**self.__dict__,
-                                        username=username,
-                                        password=password,
+    def to_fingerprinted_data(self) -> 'FingerPrintedData':
+        return FingerPrintedData(
+                                        user_agent=self.user_agent,
+                                        accept_language=self.accept_language,
                                         device_fingerprint=self.fingerprint,
                                         ip=self.ip)
 
@@ -188,7 +186,11 @@ class AuthorizationHeaders(RawFingerPrint):
         # We need it why use OAuth2PasswordBearer to prevent double getting it from header
         if token is None:
             token = self.token()
-        return TokenFingerPrinted(value=token, device_fingerprint=self.fingerprint)
+        return TokenFingerPrinted(value=token,
+                                  device_fingerprint=self.fingerprint,
+                                  ip=self.ip,
+                                  user_agent=self.user_agent,
+                                  accept_language=self.accept_language)
 
 
 class AuthRequest(BaseModel):
@@ -209,28 +211,34 @@ class AuthRequest(BaseModel):
         )
 
 
-# TODO refactor user_agent, accept_language to other class, or rename this class
-class DeviceFingerprintValue(BaseModel):
+#  class DeviceFingerprintValue(BaseModel):
+#     device_fingerprint: str = Field(
+#         ..., description="The fingerprint of the user's device")
+#    # ip: str
+#    # user_agent: str
+#    # accept_language: str
+
+
+class FingerPrintedData(BaseModel):
+    ip: str
+    user_agent: str
+    accept_language: str
     device_fingerprint: str = Field(
         ..., description="The fingerprint of the user's device")
-    # ip: str
-    # user_agent: str
-    # accept_language: str
 
 
-class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue):
+# class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue, FingerPrintedData):
+class AuthRequestFingerPrinted(AuthRequest, FingerPrintedData):
     username: constr(min_length=3, strip_whitespace=True) = Field(
         ..., description="The username of the user"
     )
     password: constr(min_length=8, strip_whitespace=True) = Field(
         ..., description="The plaintext password of the user"
     )
-    ip: str
-    user_agent: str
-    accept_language: str
 
 
-class TokenFingerPrinted(TokenValue, DeviceFingerprintValue):
+#  class TokenFingerPrinted(TokenValue, DeviceFingerprintValue):
+class TokenFingerPrinted(TokenValue, FingerPrintedData):
     pass
 
 
