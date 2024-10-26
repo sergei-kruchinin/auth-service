@@ -4,13 +4,18 @@ from functools import wraps
 from flask import request
 import logging
 import os
+from redis import Redis
 from contextlib import contextmanager
-from core.token_service import TokenService
+from core.token_service import TokenVerifier
 from core.models import get_db
 from core.exceptions import *
 from core.schemas import AuthorizationHeaders, RawFingerPrint
 
 logger = logging.getLogger(__name__)
+
+
+def get_redis_client() -> Redis:
+    return Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIS_PORT', 6379)), db=0)
 
 
 @contextmanager
@@ -20,6 +25,14 @@ def get_db_session():
         yield db
     finally:
         db.close()
+
+
+def with_redis(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        with get_db_session() as db:
+            return f(*args, **kwargs, redis=get_redis_client())
+    return decorated
 
 
 def with_db(f):
@@ -64,7 +77,8 @@ def fingerprint_required(f):
     return decorated
 
 
-def token_required(f):
+@with_redis
+def token_required(f, redis: Redis):
     """
     Decorator to verify the presence and validity of a Bearer token in the request headers.
 
@@ -73,6 +87,7 @@ def token_required(f):
 
     Args:
         f (function): The function to be decorated.
+        redis (Redis): Redis Client
 
     Raises:
         HeaderNotSpecifiedError: If the authorization header is not specified or does not start with 'Bearer '.
@@ -93,7 +108,8 @@ def token_required(f):
                                              accept_language=accept_language,
                                              authorization=authorization_header)
         try:
-            verification = TokenService.verify_token(authorization.to_token_fingerprinted())
+            token_verifier = TokenVerifier(redis)
+            verification = token_verifier.verify_token(authorization.to_token_fingerprinted())
         except TokenBlacklisted as e:
             logger.warning(f"Token invalidated. Get new one: {str(e)}")
             raise TokenBlacklisted("Token invalidated. Get new one") from e
@@ -104,7 +120,11 @@ def token_required(f):
             logger.error(f"Invalid token: {str(e)}")
             raise TokenInvalid("Invalid token") from e
 
-        return f(verification=verification, *args, **kwargs)
+        # maybe to be better using inspect... by now we are using try...except
+        try:  # if redis using function
+            return f(verification=verification, *args, **kwargs, redis=redis)
+        except TypeError:  # not redis-using function
+            return f(verification=verification, *args, **kwargs)
 
     return decorated
 

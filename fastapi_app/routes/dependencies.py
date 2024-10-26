@@ -25,6 +25,7 @@ def get_redis_client() -> Redis:
 def get_token_verifier(redis_client: Redis = Depends(get_redis_client)) -> TokenVerifier:
     return TokenVerifier(redis_client)
 
+
 def get_token_storage(redis_client: Redis = Depends(get_redis_client)) -> TokenStorage:
     return TokenStorage(redis_client)
 

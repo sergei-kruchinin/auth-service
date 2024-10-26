@@ -5,12 +5,12 @@ from pydantic import ValidationError
 import logging
 from sqlalchemy.orm import Session
 
-from core.schemas import AuthRequest, AuthTokens, ManualUserCreateSchema, TokenVerification, RawFingerPrint
+from core.schemas import AuthTokens
 from core.models.user import *
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *
-from core.token_service import TokenType
+from core.token_service import TokenType, TokenStorage
 
 
 logger = logging.getLogger(__name__)
@@ -194,7 +194,7 @@ def register_routes(bp: Blueprint):
 
     @bp.route("/auth/logout", methods=["POST"])
     @token_required
-    def logout(verification: TokenVerification) -> Response:
+    def logout(verification: TokenVerification, redis: Redis) -> Response:
         """
         Route for logging out a user and invalidating the token.
 
@@ -214,7 +214,9 @@ def register_routes(bp: Blueprint):
 
         try:
             token = verification.access_token
-            TokenService.add_to_blacklist(token)
+
+            token_storage = TokenStorage(redis)
+            token_storage.add_to_blacklist(token)
             message = 'Token has been invalidated (added to blacklist).'
             status = True
         except DatabaseError as e:
