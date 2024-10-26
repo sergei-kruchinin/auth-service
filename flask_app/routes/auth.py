@@ -76,8 +76,11 @@ def register_routes(bp: Blueprint):
             json_data = request.get_json()
             if not json_data:
                 raise NoDataProvided('No input data provided')
-            json_data["device_fingerprint"] = device_fingerprint.fingerprint
-            auth_request = AuthRequestFingerPrinted(**json_data)
+            auth_request = AuthRequestFingerPrinted(**json_data,
+                                                    device_fingerprint=device_fingerprint.fingerprint,
+                                                    ip=device_fingerprint.ip,
+                                                    user_agent=device_fingerprint.user_agent,
+                                                    accept_language=device_fingerprint.accept_language)
             authentication = User.authenticate(db, auth_request)
 
         except ValidationError as e:
@@ -107,7 +110,7 @@ def register_routes(bp: Blueprint):
         503: If there's an OAuth or user data retrieval error
         """
         ip = device_fingerprint.ip
-        logger.info("fReceived Yandex OAuth callback request from {ip}")
+        logger.info(f"fReceived Yandex OAuth callback request from {ip}")
         if request.method == 'POST':
             # In POST requests, we always receive the token.
             access_token = request.json.get('token')
@@ -144,7 +147,7 @@ def register_routes(bp: Blueprint):
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
             user = User.create_or_update_oauth_user(db, oauth_user_data)
-            authentication = user.authenticate_oauth(device_fingerprint.fingerprint)
+            authentication = user.authenticate_oauth(db,device_fingerprint.to_fingerprinted_data())
         except DatabaseError as e:
             logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
             raise DatabaseError(f"There was an error while syncing the user from yandex") from e
