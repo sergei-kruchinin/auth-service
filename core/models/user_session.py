@@ -1,4 +1,4 @@
-# core > models > user.py
+# core > models > user_session.py
 from core.schemas import *
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy.exc import SQLAlchemyError

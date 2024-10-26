@@ -6,14 +6,18 @@ from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_app.routes.dependencies import (get_db_session, token_required, get_yandex_uri)
+import os
+from redis import Redis
+
 
 from core.schemas import *
 from core.schemas_exceptions import *
 from core.models.user import User
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
-from core.token_service import TokenType, TokenService
+from core.token_service import TokenType, TokenStorage
+from fastapi_app.routes.dependencies import (get_db_session, token_required, get_yandex_uri,
+                                             get_token_storage)
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +201,8 @@ def register_routes(router: APIRouter):
 
     @auth_router.post("/logout", response_model=SimpleResponseStatus)
     async def logout(
-            verification: TokenVerification = Depends(token_required)
+            verification: TokenVerification = Depends(token_required),
+            token_storage: TokenStorage = Depends(get_token_storage)
     ) -> Response:
         """
         Route for logging out a user and invalidating the token.
@@ -211,7 +216,8 @@ def register_routes(router: APIRouter):
         logger.info("Logout route called")
         try:
             token = verification.access_token
-            TokenService.add_to_blacklist(token)
+
+            token_storage.add_to_blacklist(token)
             message = 'Token has been invalidated (added to blacklist).'
             status = True
         except DatabaseError as e:

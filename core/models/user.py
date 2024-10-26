@@ -3,13 +3,13 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, Session
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 import logging
 
 from .base import Base
 from core.schemas import *
 from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
-from core.token_service import TokenService, TokenType
+from core.token_service import TokenType, TokenGenerator
 from core.password_hash import PasswordHash
 from core.models.user_session import UserSession
 
@@ -269,7 +269,9 @@ class User(Base):
 
         for token_type in TokenType:
             logger.info(f"Generating {token_type} token")
-            token_response = TokenService.generate_token(payload, token_type)
+
+            token_generator = TokenGenerator()
+            token_response = token_generator.generate_token(payload, token_type)
             logger.info(f"Token")
             tokens[token_type.value] = TokenData(value=token_response.value,
                                                  expires_in=token_response.expires_in)

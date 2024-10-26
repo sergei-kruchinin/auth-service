@@ -1,71 +1,49 @@
-# core > token_service.py
-
+# core > token_service
 import jwt
 import os
 from datetime import datetime, timezone, timedelta
 import logging
-import redis
-from redis import Redis, RedisError
+from redis import RedisError
 from enum import Enum
+from typing import Protocol
 
 from .schemas import TokenPayload, TokenData, TokenVerification, TokenFingerPrinted
 from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 
-
+# Load configuration from environment variables
 AUTH_SECRET = os.getenv('AUTH_SECRET')
-print('AUTH_SECRET:', AUTH_SECRET)
-# Set 60 to see deleting invalidated token from redis when ttl will be expired
 ACCESS_EXPIRES_SECONDS = int(os.getenv('ACCESS_EXPIRES_SECONDS', 600))  # 10 minutes
 REFRESH_EXPIRES_SECONDS = int(os.getenv('REFRESH_EXPIRES_SECONDS', 1209600))  # 14 days
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
+# Setup logger
 logger = logging.getLogger(__name__)
 
-r = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+
+# Protocol for Redis interface
+class RedisClientProtocol(Protocol):
+    def setex(self, name: str, time: int, value: str) -> None:
+        ...
+
+    def exists(self, name: str) -> int:
+        ...
 
 
+# Enum for token type
 class TokenType(Enum):
-    """
-    TokenType defines the types of tokens that can be generated.
-
-    Attributes:
-        ACCESS (str): Represents an access token.
-        REFRESH (str): Represents a refresh token.
-    """
     ACCESS = 'access'
     REFRESH = 'refresh'
 
 
-class TokenService:
-    """
-    TokenService handles all operations related to JWT token generation, validation,
-    and management of tokens in the blacklist.
-    """
-
-    @staticmethod
-    def generate_token(payload: TokenPayload, token_type: TokenType) -> TokenData:
-        """
-        Generate a JWT token of the specified type and set its expiration time.
-
-        Args:
-            payload (TokenPayload): The payload data for the token.
-            token_type (TokenType): The type of token to generate (TokenType.ACCESS or TokenType.REFRESH).
-        Returns:
-            TokenData: The generated token and expiration time.
-        """
-
+# Class for token generation
+class TokenGenerator:
+    def generate_token(self, payload: TokenPayload, token_type: TokenType) -> TokenData:
+        """Generate a JWT token"""
         if not isinstance(AUTH_SECRET, str):
-            raise TypeError("AUTH_SECRET должен быть строкой")
+            raise TypeError("AUTH_SECRET must be a string")
 
-        if token_type == TokenType.ACCESS:
-            expires_in = ACCESS_EXPIRES_SECONDS
-        elif token_type == TokenType.REFRESH:
-            expires_in = REFRESH_EXPIRES_SECONDS
-        else:
-            raise ValueError("Invalid token type")
-
+        expires_in = ACCESS_EXPIRES_SECONDS if token_type == TokenType.ACCESS else REFRESH_EXPIRES_SECONDS
         exp = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
         jwt_payload = payload.dict().copy()
         jwt_payload.update({"exp": exp.timestamp()})
 
@@ -73,17 +51,63 @@ class TokenService:
         logger.info(f"Generated new {token_type.value} token")
         return TokenData(value=encoded_jwt, expires_in=expires_in)
 
-    @staticmethod
-    def get_token_ttl(token: str) -> int:
-        """
-        Calculate the remaining time-to-live (TTL) for a JWT token.
 
-        Args:
-            token (str): The JWT token.
+# Class for verifying tokens
+class TokenVerifier:
+    def __init__(self, redis_client: RedisClientProtocol):
+        self.token_storage = TokenStorage(redis_client)
 
-        Returns:
-            int: The remaining TTL in seconds.
-        """
+    def verify_token(self, token: TokenFingerPrinted) -> TokenVerification:
+        """Verify a JWT token"""
+        logger.info(f"Verifying token: {token.value}")
+        if self.token_storage.is_blacklisted(token.value):
+            raise TokenBlacklisted("Token invalidated. Get new one")
+        try:
+            decoded = jwt.decode(token.value, AUTH_SECRET, algorithms=['HS256'])
+            token_payload = TokenPayload(**decoded)
+            if token_payload.device_fingerprint != token.device_fingerprint:
+                logger.warning("Device fingerprint does not match")
+                raise TokenInvalid("Device fingerprint does not match")
+            logger.info("Token successfully verified")
+            return token_payload.to_response(access_token=token.value)
+        except jwt.ExpiredSignatureError:
+            logger.warning("Token expired")
+            raise TokenExpired("Token expired. Get new one")
+        except jwt.InvalidTokenError:
+            logger.error("Invalid token")
+            raise TokenInvalid("Invalid token")
+
+
+# Class for managing token storage and blacklisting
+class TokenStorage:
+    def __init__(self, redis_client: RedisClientProtocol):
+        self.redis_client = redis_client
+
+    def add_to_blacklist(self, token: str):
+        """Add token to the blacklist"""
+        logger.info(f"Adding token to blacklist: {token}")
+        try:
+            ttl = self.get_token_ttl(token)
+            self.redis_client.setex(token, ttl, 'revoked')
+            logger.info(f"Token added to blacklist: {token}")
+        except RedisError as e:
+            logger.error(f"Error adding token to blacklist: {str(e)}")
+            raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
+        except TokenInvalid:
+            raise
+
+    def is_blacklisted(self, token: str) -> bool:
+        """Check if the token is blacklisted"""
+        try:
+            result = self.redis_client.exists(token)
+            logger.info(f"Checked blacklist status for token: {token}, Result: {result}")
+            return result == 1
+        except RedisError as e:
+            logger.error(f"Error checking if token is blacklisted: {str(e)}")
+            raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
+
+    def get_token_ttl(self, token: str) -> int:
+        """Retrieve the remaining time-to-live (TTL) for a token"""
         try:
             decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'], options={"verify_signature": False})
             exp = decoded.get('exp')
@@ -92,92 +116,9 @@ class TokenService:
 
             current_time = datetime.now(timezone.utc).timestamp()
             ttl = exp - current_time
-            # If the token has expired, the TTL will be negative. In this case, it will return 0.
-            # Otherwise, it will return the actual time-to-live.
             return max(0, int(ttl))
         except jwt.DecodeError:
             raise TokenInvalid("Invalid token")
 
-    @staticmethod
-    def add_to_blacklist(token: str):
-        """
-        Add a token to the blacklist.
 
-        Args:
-            token (str): The JWT token to be added to the blacklist.
-        """
-        logger.info(f"Adding token to blacklist: {token}")
 
-        try:
-            ttl = TokenService.get_token_ttl(token)
-            r.setex(token, ttl, 'revoked')
-            logger.info(f"Token added to blacklist: {token}")
-        except RedisError as e:
-            logger.error(f"Error adding token to blacklist: {str(e)}")
-            raise DatabaseError(f"Error adding token to blacklist: {str(e)}") from e
-        except TokenInvalid:
-            raise
-
-    @staticmethod
-    def is_blacklisted(token: str) -> bool:
-        """
-        Check if a token is in the blacklist.
-
-        Args:
-            token (str): The JWT token to be checked.
-
-        Returns:
-            bool: True if the token is blacklisted, False otherwise.
-        """
-        try:
-            result = r.exists(token)
-            logger.info(f"Checked blacklist status for token: {token}, Result: {result}")
-            return result == 1
-        except redis.RedisError as e:
-            logger.error(f"Error checking if token is blacklisted: {str(e)}")
-            raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
-
-    @staticmethod
-    def verify_token(token: TokenFingerPrinted) -> TokenVerification:
-        """
-        Verify a JWT token, ensuring it is not expired or blacklisted.
-
-        This method decodes the JWT token, checks if it is blacklisted, verifies
-        the expiration time, and ensures that the token was issued to the device
-        with the specified fingerprint.
-
-        Args:
-            token (TokenFingerPrinted): The JWT token with fingerprint to be verified.
-                                        The fingerprint of the device attempting to use
-                                        the token. This is used to ensure the token is
-                                        being used on the same device it was issued to.
-
-        Returns:
-            TokenVerification: The token and expiration with decoded payload of the token if valid, containing user data
-                               and additional claims.
-
-        Raises:
-            TokenBlacklisted: If the token is blacklisted.
-            TokenExpired: If the token has expired.
-            TokenInvalid: If the token is invalid or if the device fingerprint does not match.
-        """
-
-        logger.info(f"Verifying token: {token.value}")
-        if TokenService.is_blacklisted(token.value):
-            raise TokenBlacklisted("Token invalidated. Get new one")
-        try:
-            decoded = jwt.decode(token.value, AUTH_SECRET, algorithms=['HS256'])
-            token_payload = TokenPayload(**decoded)  # TODO: , token.value INSTEAD OF down...
-            if token_payload.device_fingerprint != token.device_fingerprint:
-                logger.warning("Device fingerprint does not match")
-                raise TokenInvalid("Device fingerprint does not match")
-            logger.info("Token successfully verified")
-            # token_verification = TokenVerification(access_token=token, **token_payload.dict())
-            token_verification = token_payload.to_response(access_token=token.value)
-            return token_verification
-        except jwt.ExpiredSignatureError:
-            logger.warning("Token expired")
-            raise TokenExpired("Token expired. Get new one")
-        except jwt.InvalidTokenError:
-            logger.error("Invalid token")
-            raise TokenInvalid("Invalid token")
