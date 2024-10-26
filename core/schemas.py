@@ -210,15 +210,6 @@ class AuthRequest(BaseModel):
             accept_language=raw_fingerprint.accept_language
         )
 
-
-#  class DeviceFingerprintValue(BaseModel):
-#     device_fingerprint: str = Field(
-#         ..., description="The fingerprint of the user's device")
-#    # ip: str
-#    # user_agent: str
-#    # accept_language: str
-
-
 class FingerPrintedData(BaseModel):
     ip: str
     user_agent: str
@@ -227,7 +218,6 @@ class FingerPrintedData(BaseModel):
         ..., description="The fingerprint of the user's device")
 
 
-# class AuthRequestFingerPrinted(AuthRequest, DeviceFingerprintValue, FingerPrintedData):
 class AuthRequestFingerPrinted(AuthRequest, FingerPrintedData):
     username: constr(min_length=3, strip_whitespace=True) = Field(
         ..., description="The username of the user"

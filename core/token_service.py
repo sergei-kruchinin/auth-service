@@ -28,16 +28,31 @@ class RedisClientProtocol(Protocol):
         ...
 
 
-# Enum for token type
 class TokenType(Enum):
+    """
+    TokenType defines the types of tokens that can be generated.
+
+    Attributes:
+        ACCESS (str): Represents an access token.
+        REFRESH (str): Represents a refresh token.
+    """
+
     ACCESS = 'access'
     REFRESH = 'refresh'
 
 
-# Class for token generation
 class TokenGenerator:
+    """Class for JWT-token generation"""
+
     def generate_token(self, payload: TokenPayload, token_type: TokenType) -> TokenData:
-        """Generate a JWT token"""
+        """
+        Generate a JWT token of the specified type and set its expiration time.
+        Args:
+            payload (TokenPayload): The payload data for the token.
+            token_type (TokenType): The type of token to generate (TokenType.ACCESS or TokenType.REFRESH).
+        Returns:
+            TokenData: The generated token and expiration time.
+        """
         if not isinstance(AUTH_SECRET, str):
             raise TypeError("AUTH_SECRET must be a string")
 
@@ -52,13 +67,20 @@ class TokenGenerator:
         return TokenData(value=encoded_jwt, expires_in=expires_in)
 
 
-# Class for verifying tokens
+
 class TokenVerifier:
+    """ Class for verifying tokens"""
     def __init__(self, redis_client: RedisClientProtocol):
         self.token_storage = TokenStorage(redis_client)
 
     def verify_token(self, token: TokenFingerPrinted) -> TokenVerification:
-        """Verify a JWT token"""
+        """
+        Verify a JWT token
+        Args:
+            token (TokenFingerPrinted): the JWT token with fingerprint
+        Returns:
+            TokenVerification: the verified token info
+        """
         logger.info(f"Verifying token: {token.value}")
         if self.token_storage.is_blacklisted(token.value):
             raise TokenBlacklisted("Token invalidated. Get new one")
@@ -84,7 +106,12 @@ class TokenStorage:
         self.redis_client = redis_client
 
     def add_to_blacklist(self, token: str):
-        """Add token to the blacklist"""
+        """
+        Add token to the blacklist
+
+        Args:
+            token (str): The JWT token to be blacklisted
+        """
         logger.info(f"Adding token to blacklist: {token}")
         try:
             ttl = self.get_token_ttl(token)
@@ -97,7 +124,15 @@ class TokenStorage:
             raise
 
     def is_blacklisted(self, token: str) -> bool:
-        """Check if the token is blacklisted"""
+        """
+        Check if the token is blacklisted
+
+        Args:
+            token (str): The JWT token.
+
+        Returns:
+            bool: True if the token is blacklisted else False.
+        """
         try:
             result = self.redis_client.exists(token)
             logger.info(f"Checked blacklist status for token: {token}, Result: {result}")
@@ -107,7 +142,16 @@ class TokenStorage:
             raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
     def get_token_ttl(self, token: str) -> int:
-        """Retrieve the remaining time-to-live (TTL) for a token"""
+        """
+        Calculate the remaining time-to-live (TTL) for a JWT token.
+
+        Args:
+            token (str): The JWT token.
+
+        Returns:
+            int: The remaining TTL in seconds.
+        """
+
         try:
             decoded = jwt.decode(token, AUTH_SECRET, algorithms=['HS256'], options={"verify_signature": False})
             exp = decoded.get('exp')
