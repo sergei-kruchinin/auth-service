@@ -142,3 +142,6 @@ class UserSession:
             db.rollback()
             logger.error(f'Failed to delete expired sessions: {e}')
             raise
+
+    def __repr__(self) -> str:
+        return f'UserSession(user_id={self.user_session.user_id}, ip_address={self.user_session.ip_address})'

@@ -21,6 +21,6 @@ def get_db():
 
 
 def init_db():
-    from core.services.user import User
-    from core.services.user_session import UserSession
+    from core.services.user import UserTable
+    from core.services.user_session import UserSessionTable
     Base.metadata.create_all(bind=engine)

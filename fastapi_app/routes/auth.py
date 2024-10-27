@@ -274,7 +274,7 @@ def register_routes(router: APIRouter):
             logger.error(f"There was an error while creating a user {user_to_create.username}: {str(e)}")
             raise DatabaseError(f"There was an error while creating a user ") from e
 
-        response_data = SimpleResponseStatus(success=True, message=f'User {user.username} created').dict()
+        response_data = SimpleResponseStatus(success=True, message=f'User {user_to_create.username} created').dict()
         logger.info("User created successfully")
         return JSONResponse(
             status_code=201,

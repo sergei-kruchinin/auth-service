@@ -1,66 +1,31 @@
 # core > services > user.py
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import relationship, Session
+from sqlalchemy.orm import Session
 from typing import Dict, Optional
 import logging
 
-from core.models.base import Base
 from core.schemas import *
 from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from core.token_service import TokenType, TokenGenerator
 from core.password_hash import PasswordHash
 from core.services.user_session import UserSession
-
+from core.models.user import UserTable
 logger = logging.getLogger(__name__)
 
 
-class User(Base):
+class User:
     """
     Represents a user in the application.
 
     Attributes:
-        id (int): The unique identifier for the user.
-        username (str): The username name of the user.
-        first_name (str): The first name of the user (optional).
-        last_name (str): The last name of the user (optional).
-        secret (str): The password hash or secret for the user (optional).
-        is_admin (bool): Flag indicating whether the user has admin privileges.
-        source (str): The source from which the user was created (e.g., 'manual', 'oauth') (optional).
-        oa_id (str): The OAuth ID for the user (optional).
-        created_at (datetime): The timestamp when the user was created.
-        updated_at (datetime): The timestamp when the user was last updated.
+        user: UserTable
     """
 
-    __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)
-    username = Column(String(128), unique=True, nullable=False)
-    first_name = Column(String(128), nullable=True)
-    last_name = Column(String(128), nullable=True)
-    secret = Column(String(256), nullable=True)
-    is_admin = Column(Boolean, nullable=False)
-    source = Column(String(50), nullable=True)
-    oa_id = Column(String(256), nullable=True)
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now()
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        onupdate=func.now()
-    )
+    user: UserTable
 
-    sessions = relationship("UserSessionTable", back_populates="user")
-
-    def __init__(self, user_data: UserCreateSchema):
-        self.username = user_data.username
-        self.first_name = user_data.first_name
-        self.last_name = user_data.last_name
-        self.secret = PasswordHash.generate_or_none(user_data.password)
-        self.is_admin = bool(user_data.is_admin)
-        self.source = user_data.source
-        self.oa_id = user_data.oa_id
+    def __init__(self, user_record: UserTable):
+        self.user = user_record
 
     # ### 2. User Management Methods ###
 
@@ -76,32 +41,13 @@ class User(Base):
             DatabaseError: If there was an error while retrieving users.
         """
         try:
-            users = db.query(cls).all()
+            users = db.query(UserTable).all()
             return {'users': [UserResponseSchema.from_orm(user).dict() for user in users]}
         except SQLAlchemyError as e:
             logger.error(f"There was an error while retrieving users: {str(e)}")
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
     # ### 3. User Creation Methods ###
-
-    def set_oa_id_if_user_is_manual(self, db: Session) -> None:
-        """
-        Set the `oa_id` for a manually created user.
-
-        This code cannot be moved to Schemas because `id` in Schemas is not present and so cannot be filled.
-
-        Args:
-            db (Session): The SQLAlchemy session to use for the database query.
-        """
-        try:
-            if self.source == 'manual' and self.oa_id is None:
-                self.oa_id = str(self.id)
-                db.commit()
-        except SQLAlchemyError as e:
-            db.rollback()
-            logger.error(f"There was an error while creating a user: {str(e)}")
-            raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
-
     @classmethod
     def __create(cls, db: Session, user_data: UserCreateSchema) -> 'User':
         """
@@ -121,15 +67,26 @@ class User(Base):
           """
         logger.debug("Creating new user")
         try:
-
-            new_user = cls(user_data)
+            # new_user = UserTable(**user_data.dict())
+            new_user = UserTable(username=user_data.username,
+                                 first_name=user_data.first_name,
+                                 last_name=user_data.last_name,
+                                 secret=PasswordHash.generate_or_none(user_data.password),
+                                 is_admin=bool(user_data.is_admin),
+                                 source=user_data.source,
+                                 oa_id=user_data.oa_id)
             db.add(new_user)
             db.commit()
-            new_user.set_oa_id_if_user_is_manual(db)
+
+            # Set the `oa_id` for a manually created user.
+            # This code cannot be moved to Schemas as method
+            # because `id` in Schemas is not present and so cannot be filled.
+            if new_user.source == 'manual' and new_user.oa_id is None:
+                new_user.oa_id = str(new_user.id)
+                db.commit()
+
             logger.info(f"User created successfully: {new_user.username}")
-            return new_user
-        except DatabaseError:
-            raise
+            return cls(new_user)
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"There was an error while creating a user: {str(e)}")
@@ -152,7 +109,8 @@ class User(Base):
         """
         logger.debug(f"Fetching user by username: {username}")
         try:
-            return db.query(cls).filter_by(username=username).first()
+            user = db.query(UserTable).filter_by(username=username).first()
+            return cls(user) if user else None
         except SQLAlchemyError as e:
             logger.error(f"There was an error while fetching the user: {str(e)}")
             raise DatabaseError(f"There was an error while fetching the user: {str(e)}") from e
@@ -199,9 +157,9 @@ class User(Base):
             db (Session): Session
             oauth_user_data (OAuthUserCreateSchema): New data for updating the user
         """
-        self.first_name = oauth_user_data.first_name
-        self.last_name = oauth_user_data.last_name
-        self.is_admin = oauth_user_data.is_admin
+        self.user.first_name = oauth_user_data.first_name
+        self.user.last_name = oauth_user_data.last_name
+        self.user.is_admin = oauth_user_data.is_admin
 
         try:
             db.commit()
@@ -235,10 +193,10 @@ class User(Base):
             if user is None:
                 user_data = oauth_user_data.to_user_create_schema()
                 user = cls.__create(db, user_data)
-                logger.info(f"OAuth user created: {user.username}")
+                logger.info(f"OAuth user created: {oauth_user_data.username}")
             else:
                 user.__update_oauth_user(db, oauth_user_data)
-                logger.info(f"OAuth user updated: {user.username}")
+                logger.info(f"OAuth user updated: {oauth_user_data.username}")
 
         except DatabaseError as e:
             logger.error(f"There was an error while creating/updating the user: {str(e)}")
@@ -257,28 +215,28 @@ class User(Base):
             Dict: The generated token and expiration time.
         """
         payload = TokenPayload(
-            id=self.id,
-            username=self.username,
-            first_name=self.first_name,
-            last_name=self.last_name,
-            is_admin=self.is_admin,
+            id=self.user.id,
+            username=self.user.username,
+            first_name=self.user.first_name,
+            last_name=self.user.last_name,
+            is_admin=self.user.is_admin,
             device_fingerprint=device_fingerprint.device_fingerprint
         )
         logger.info("Generating access and refresh token")
-        tokens = {}
 
-        for token_type in TokenType:
-            logger.info(f"Generating {token_type} token")
-
-            token_generator = TokenGenerator()
-            token_response = token_generator.generate_token(payload, token_type)
-            logger.info(f"Token")
-            tokens[token_type.value] = TokenData(value=token_response.value,
-                                                 expires_in=token_response.expires_in)
+        tokens = {token_type.value: TokenGenerator().generate_token(payload, token_type) for token_type in TokenType}
+        # tokens = {}
+        # for token_type in TokenType:
+        #     logger.info(f"Generating {token_type} token")
+        #     token_generator = TokenGenerator()
+        #     token_response = token_generator.generate_token(payload, token_type)
+        #     logger.info(f"Token")
+        #     tokens[token_type.value] = TokenData(value=token_response.value,
+        #                                          expires_in=token_response.expires_in)
         logger.info("Access and refresh token generates")
 
         session_data = UserSessionData(
-            user_id=self.id,
+            user_id=self.user.id,
             ip_address=device_fingerprint.ip,
             user_agent=device_fingerprint.user_agent,
             accept_language=device_fingerprint.accept_language,
@@ -287,7 +245,7 @@ class User(Base):
         print('SESSION:', session_data)
         UserSession.create_session(db, session_data)
 
-        return AuthTokens(tokens=tokens, user_id=self.id)
+        return AuthTokens(tokens=tokens, user_id=self.user.id)
 
     @classmethod
     def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
@@ -304,14 +262,14 @@ class User(Base):
         """
         logger.debug(f"Authenticating user: {auth_request.username}")
         try:
-            user = db.query(cls).filter_by(username=auth_request.username).first()
+            user = db.query(UserTable).filter_by(username=auth_request.username).first()
 
             if user is None or not PasswordHash.check(str(user.secret), auth_request.password):
                 logger.warning(f"Authentication failed for user: {auth_request.username}")
                 raise AuthenticationError('Invalid username or invalid password')
             logger.info(f"User authenticated successfully: {user.username}")
             #     user.id,
-            return user.__generate_auth_response_and_save_session(db, auth_request)
+            return cls(user).__generate_auth_response_and_save_session(db, auth_request)
 
         except SQLAlchemyError as e:
             logger.error(f"There was an error accessing the database: {str(e)}")
@@ -325,17 +283,9 @@ class User(Base):
             Dict: The generated token and expiration time.
 
         """
-        logger.debug(f"Authenticating OAuth user: {self.username}")
+        logger.debug(f"Authenticating OAuth user: {self.user.username}")
         return self.__generate_auth_response_and_save_session(db, device_fingerprint)
 
-    # ### 5. Object Representation Methods ###
-
     def __repr__(self) -> str:
-        """
-        Represent user information for debugging/logging.
-
-        Returns:
-            str: Representation of the user's username.
-        """
-
-        return f'<User(username={self.username}, id={self.id}, is_admin={self.is_admin})>'
+        return (f'<User(username={self.user.username}, id={self.user.id}, is_admin={self.user.is_admin})>'
+                f'')

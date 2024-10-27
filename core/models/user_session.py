@@ -28,7 +28,7 @@ class UserSessionTable(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    user = relationship("User", back_populates="sessions")
+    user = relationship("UserTable", back_populates="sessions")
     ip_address = Column(String(45), nullable=False)
     user_agent = Column(String(256), nullable=False)
     accept_language = Column(String(256), nullable=True)
