@@ -1,4 +1,4 @@
-# core models user_session.py
+# core > models > user_session.py
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
