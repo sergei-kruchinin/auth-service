@@ -1,4 +1,4 @@
-# core/models/base.py
+# core > model > /base.py
 
 import os
 from sqlalchemy import create_engine
@@ -21,6 +21,6 @@ def get_db():
 
 
 def init_db():
-    from core.models.user import User
-    from core.models.user_session import UserSession
+    from core.services.user import User
+    from core.services.user_session import UserSession
     Base.metadata.create_all(bind=engine)

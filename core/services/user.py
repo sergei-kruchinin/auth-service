@@ -1,4 +1,4 @@
-# core > models > user.py
+# core > services > user.py
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
@@ -6,12 +6,12 @@ from sqlalchemy.orm import relationship, Session
 from typing import Dict, Optional
 import logging
 
-from .base import Base
+from core.models.base import Base
 from core.schemas import *
 from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from core.token_service import TokenType, TokenGenerator
 from core.password_hash import PasswordHash
-from core.models.user_session import UserSession
+from core.services.user_session import UserSession
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class User(Base):
         onupdate=func.now()
     )
 
-    sessions = relationship("UserSession", back_populates="user")
+    sessions = relationship("UserSessionTable", back_populates="user")
 
     def __init__(self, user_data: UserCreateSchema):
         self.username = user_data.username

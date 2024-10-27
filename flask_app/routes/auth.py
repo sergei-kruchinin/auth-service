@@ -6,7 +6,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from core.schemas import AuthTokens
-from core.models.user import *
+from core.services.user import *
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *

@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import sessionmaker, Session
 from core.models.base import init_db, engine, Base
-from core.models.user import User
+from core.services.user import User
 from core.schemas import ManualUserCreateSchema
 
 

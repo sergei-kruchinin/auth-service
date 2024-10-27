@@ -12,7 +12,7 @@ from redis import Redis
 
 from core.schemas import *
 from core.schemas_exceptions import *
-from core.models.user import User
+from core.services.user import User
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenStorage

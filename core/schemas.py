@@ -1,5 +1,5 @@
 # core > schemas.py
-# Pydantic models
+# Pydantic services
 
 from datetime import datetime
 from pydantic import BaseModel, Field, constr, model_validator, ConfigDict

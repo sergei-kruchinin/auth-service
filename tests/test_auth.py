@@ -1,7 +1,7 @@
 import pytest
 import requests
 from core.schemas import ManualUserCreateSchema
-from core.models import Base, engine, User
+from core.services import Base, engine, User
 from sqlalchemy.orm import sessionmaker
 
 

@@ -7,7 +7,7 @@ import os
 from redis import Redis
 from contextlib import contextmanager
 from core.token_service import TokenVerifier
-from core.models import get_db
+from core.services import get_db
 from core.exceptions import *
 from core.schemas import AuthorizationHeaders, RawFingerPrint
 
