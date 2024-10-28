@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from core.schemas import *
 from core.schemas_exceptions import *
-from core.services.user import User,OAuthAuthenticator
+from core.services.user import User, OAuthAuthenticator, Authenticator
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenStorage
@@ -89,7 +89,7 @@ def register_routes(router: APIRouter):
 
         try:
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            authentication = User.authenticate(db, auth_request_fingerprinted)
+            authentication = Authenticator.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e
         except AuthenticationError as e:
@@ -118,7 +118,7 @@ def register_routes(router: APIRouter):
             password = form_data.password
             auth_request = AuthRequest(username=username, password=password)
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            authentication = User.authenticate(db, auth_request_fingerprinted)
+            authentication = Authenticator.authenticate(db, auth_request_fingerprinted)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e
         except AuthenticationError as e:

@@ -81,7 +81,7 @@ def register_routes(bp: Blueprint):
                                                     ip=device_fingerprint.ip,
                                                     user_agent=device_fingerprint.user_agent,
                                                     accept_language=device_fingerprint.accept_language)
-            authentication = User.authenticate(db, auth_request)
+            authentication = Authenticator.authenticate(db, auth_request)
 
         except ValidationError as e:
             raise InsufficientAuthData('username or password not specified') from e

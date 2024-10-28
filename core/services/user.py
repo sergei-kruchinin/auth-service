@@ -149,6 +149,19 @@ class User:
             logger.error(f"There was an error while creating user: {str(e)}")
             raise DatabaseError(f"There was an error while creating user {str(e)}") from e
 
+    def authenticator(self) -> 'Authenticator':
+        return Authenticator(self.user)
+
+    def __repr__(self) -> str:
+        return (f'<User(username={self.user.username}, id={self.user.id}, is_admin={self.user.is_admin})>'
+                f'')
+
+
+class Authenticator:
+    user: UserTable
+
+    def __init__(self, user_record: UserTable):
+        self.user = user_record
 
     # ### 4. Authentication Methods ###
     def generate_auth_response_and_save_session(self,
@@ -205,16 +218,13 @@ class User:
                 logger.warning(f"Authentication failed for user: {auth_request.username}")
                 raise AuthenticationError('Invalid username or invalid password')
             logger.info(f"User authenticated successfully: {user.username}")
-            #     user.id,
-            return cls(user).generate_auth_response_and_save_session(db, auth_request)
+
+            authenticator = Authenticator(user)
+            return authenticator.generate_auth_response_and_save_session(db, auth_request)
 
         except SQLAlchemyError as e:
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
-
-    def __repr__(self) -> str:
-        return (f'<User(username={self.user.username}, id={self.user.id}, is_admin={self.user.is_admin})>'
-                f'')
 
 
 class OAuthUser(User):
@@ -283,7 +293,8 @@ class OAuthAuthenticator:
         logger.info(f"Trying to create or update OAuth user with return auth data: {oauth_user_data.username}")
         user = OAuthUser.create_or_update_oauth_user(db, oauth_user_data)
         logger.debug(f"Authenticating OAuth user: {oauth_user_data.username}")
-        authentication = user.generate_auth_response_and_save_session(db, device_fingerprint)
+
+        authentication = user.authenticator().generate_auth_response_and_save_session(db, device_fingerprint)
         logger.info(f"Now user {oauth_user_data.username} in db and auth data returning")
         return authentication
 
