@@ -93,7 +93,7 @@ class User:
             raise DatabaseError(f"There was an error while creating a user: {str(e)}") from e
 
     @classmethod
-    def _get_user_by_username(cls, db: Session, username: str) -> Optional['User']:
+    def get_user_by_username(cls, db: Session, username: str) -> Optional['User']:
         """
         Fetch a user by username.
 
@@ -134,7 +134,7 @@ class User:
 
         logger.debug("Creating new user with check")
 
-        if cls._get_user_by_username(db, user_data.username) is not None:
+        if cls.get_user_by_username(db, user_data.username) is not None:
             logger.warning(f"User with username {user_data.username} already exists")
             raise UserAlreadyExistsError(f"User with username {user_data.username} already exists")
 
@@ -151,6 +151,9 @@ class User:
 
     def authenticator(self) -> 'Authenticator':
         return Authenticator(self.user)
+
+    def secret(self) -> str:
+        return self.user.secret
 
     def __repr__(self) -> str:
         return (f'<User(username={self.user.username}, id={self.user.id}, is_admin={self.user.is_admin})>'
@@ -212,14 +215,16 @@ class Authenticator:
         """
         logger.debug(f"Authenticating user: {auth_request.username}")
         try:
-            user = db.query(UserTable).filter_by(username=auth_request.username).first()
+            # user = db.query(UserTable).filter_by(username=auth_request.username).first()
+            user = User.get_user_by_username(db, auth_request.username)
 
-            if user is None or not PasswordHash.check(str(user.secret), auth_request.password):
+            if user is None or not PasswordHash.check(str(user.secret()), auth_request.password):
                 logger.warning(f"Authentication failed for user: {auth_request.username}")
                 raise AuthenticationError('Invalid username or invalid password')
-            logger.info(f"User authenticated successfully: {user.username}")
+            logger.info(f"User authenticated successfully: {auth_request.username}")
 
-            authenticator = Authenticator(user)
+            # authenticator = Authenticator(user)
+            authenticator = user.authenticator()
             return authenticator.generate_auth_response_and_save_session(db, auth_request)
 
         except SQLAlchemyError as e:
@@ -267,7 +272,7 @@ class OAuthUser(User):
         logger.debug("Creating or updating OAuth user")
 
         try:
-            user = cls._get_user_by_username(db, oauth_user_data.username)
+            user = cls.get_user_by_username(db, oauth_user_data.username)
 
             if user is None:
                 user_data = oauth_user_data.to_user_create_schema()
