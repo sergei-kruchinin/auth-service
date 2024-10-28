@@ -7,7 +7,7 @@ import os
 import logging
 from redis import Redis
 
-from core.token_service import TokenVerifier, TokenStorage
+from core.services.token_service import TokenVerifier, TokenStorage
 from core.services import get_db
 from core.schemas import AuthorizationHeaders
 from core.exceptions import *

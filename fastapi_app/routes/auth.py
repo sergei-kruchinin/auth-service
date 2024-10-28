@@ -13,7 +13,7 @@ from core.schemas_exceptions import *
 from core.services.user import User, OAuthAuthenticator, Authenticator
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
-from core.token_service import TokenType, TokenStorage
+from core.services.token_service import TokenType, TokenStorage
 from fastapi_app.routes.dependencies import (get_db_session, token_required, get_yandex_uri,
                                              get_token_storage)
 

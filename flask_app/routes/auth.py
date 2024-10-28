@@ -2,15 +2,13 @@
 import requests
 from flask import Blueprint, make_response, Response
 from pydantic import ValidationError
-import logging
-from sqlalchemy.orm import Session
 
 from core.schemas import AuthTokens
 from core.services.user import *
 from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *
-from core.token_service import TokenType, TokenStorage
+from core.services.token_service import TokenType, TokenStorage
 
 
 logger = logging.getLogger(__name__)

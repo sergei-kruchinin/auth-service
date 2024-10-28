@@ -1,4 +1,4 @@
-# core > token_service
+# core > services > token_service
 import jwt
 import os
 from datetime import datetime, timezone, timedelta
@@ -7,8 +7,8 @@ from redis import RedisError
 from enum import Enum
 from typing import Protocol
 
-from .schemas import TokenPayload, TokenData, TokenVerification, TokenFingerPrinted
-from .exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
+from core.schemas import TokenPayload, TokenData, TokenVerification, TokenFingerPrinted
+from core.exceptions import TokenBlacklisted, TokenExpired, TokenInvalid, DatabaseError
 
 # Load configuration from environment variables
 AUTH_SECRET = os.getenv('AUTH_SECRET')
@@ -44,7 +44,8 @@ class TokenType(Enum):
 class TokenGenerator:
     """Class for JWT-token generation"""
 
-    def generate_token(self, payload: TokenPayload, token_type: TokenType) -> TokenData:
+    @staticmethod
+    def generate_token(payload: TokenPayload, token_type: TokenType) -> TokenData:
         """
         Generate a JWT token of the specified type and set its expiration time.
         Args:
@@ -65,7 +66,6 @@ class TokenGenerator:
         encoded_jwt = jwt.encode(jwt_payload, AUTH_SECRET, algorithm='HS256')
         logger.info(f"Generated new {token_type.value} token")
         return TokenData(value=encoded_jwt, expires_in=expires_in)
-
 
 
 class TokenVerifier:

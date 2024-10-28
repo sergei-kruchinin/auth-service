@@ -7,7 +7,7 @@ import logging
 
 from core.schemas import *
 from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
-from core.token_service import TokenType, TokenGenerator
+from core.services.token_service import TokenType, TokenGenerator
 from core.password_hash import PasswordHash
 from core.services.user_session import UserSession
 from core.models.user import UserTable
@@ -185,7 +185,7 @@ class Authenticator:
             device_fingerprint=device_fingerprint.device_fingerprint
         )
         logger.info("Generating access and refresh token")
-        tokens = {token_type.value: TokenGenerator().generate_token(payload, token_type) for token_type in TokenType}
+        tokens = {token_type.value: TokenGenerator.generate_token(payload, token_type) for token_type in TokenType}
         logger.info("Access and refresh token generates")
 
         session_data = UserSessionData(
