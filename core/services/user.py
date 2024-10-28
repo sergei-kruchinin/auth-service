@@ -200,8 +200,8 @@ class Authenticator:
 
         return AuthTokens(tokens=tokens, user_id=self.user.id)
 
-    @classmethod
-    def authenticate(cls, db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
+    @staticmethod
+    def authenticate(db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
         """
         Authenticate user with username and password.
 
@@ -290,9 +290,8 @@ class OAuthUser(User):
 
 class OAuthAuthenticator:
 
-    @classmethod
-    def authenticate(cls,
-                     db: Session,
+    @staticmethod
+    def authenticate(db: Session,
                      oauth_user_data: OAuthUserCreateSchema,
                      device_fingerprint: FingerPrintedData) -> AuthTokens:
         logger.info(f"Trying to create or update OAuth user with return auth data: {oauth_user_data.username}")
