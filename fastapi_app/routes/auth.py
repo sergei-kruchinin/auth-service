@@ -6,13 +6,11 @@ from sqlalchemy.orm import Session
 import logging
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-import os
-from redis import Redis
 
 
 from core.schemas import *
 from core.schemas_exceptions import *
-from core.services.user import User
+from core.services.user import User,OAuthAuthenticator
 from core.yandex_oauth_async import YandexOAuthService
 from core.exceptions import *
 from core.token_service import TokenType, TokenStorage
@@ -63,8 +61,9 @@ async def authenticate_with_yandex_token(yandex_access_token: YandexAccessToken,
         logger.error(f'Unable to retrieve user data: {str(e)}')
         raise
     oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
-    user = User.create_or_update_oauth_user(db, oauth_user_data)
-    authentication = user.authenticate_oauth(db, device_fingerprint.to_fingerprinted_data())
+    authentication = OAuthAuthenticator.authenticate(db,
+                                                     oauth_user_data,
+                                                     device_fingerprint.to_fingerprinted_data())
     logger.info("Yandex user authenticated successfully")
     return create_auth_response(authentication)
 

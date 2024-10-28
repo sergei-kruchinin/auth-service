@@ -146,8 +146,9 @@ def register_routes(bp: Blueprint):
         # add to our database (or update)
         try:
             oauth_user_data = YandexOAuthService.yandex_user_info_to_oauth(yandex_user_info)
-            user = User.create_or_update_oauth_user(db, oauth_user_data)
-            authentication = user.authenticate_oauth(db,device_fingerprint.to_fingerprinted_data())
+            authentication = OAuthAuthenticator.authenticate(db,
+                                                             oauth_user_data,
+                                                             device_fingerprint.to_fingerprinted_data())
         except DatabaseError as e:
             logger.error(f"There was an error while syncing the user from yandex: {str(e)}")
             raise DatabaseError(f"There was an error while syncing the user from yandex") from e

@@ -205,9 +205,9 @@ class User:
 
     # ### 4. Authentication Methods ###
 
-    def __generate_auth_response_and_save_session(self,
-                                                  db: Session,
-                                                  device_fingerprint: FingerPrintedData) -> AuthTokens:
+    def generate_auth_response_and_save_session(self,
+                                                db: Session,
+                                                device_fingerprint: FingerPrintedData) -> AuthTokens:
         """
         Generate authentication response including JWT token and its expiration time.
 
@@ -223,16 +223,7 @@ class User:
             device_fingerprint=device_fingerprint.device_fingerprint
         )
         logger.info("Generating access and refresh token")
-
         tokens = {token_type.value: TokenGenerator().generate_token(payload, token_type) for token_type in TokenType}
-        # tokens = {}
-        # for token_type in TokenType:
-        #     logger.info(f"Generating {token_type} token")
-        #     token_generator = TokenGenerator()
-        #     token_response = token_generator.generate_token(payload, token_type)
-        #     logger.info(f"Token")
-        #     tokens[token_type.value] = TokenData(value=token_response.value,
-        #                                          expires_in=token_response.expires_in)
         logger.info("Access and refresh token generates")
 
         session_data = UserSessionData(
@@ -269,23 +260,28 @@ class User:
                 raise AuthenticationError('Invalid username or invalid password')
             logger.info(f"User authenticated successfully: {user.username}")
             #     user.id,
-            return cls(user).__generate_auth_response_and_save_session(db, auth_request)
+            return cls(user).generate_auth_response_and_save_session(db, auth_request)
 
         except SQLAlchemyError as e:
             logger.error(f"There was an error accessing the database: {str(e)}")
             raise DatabaseError(f"There was an error accessing the database: {str(e)}") from e
 
-    def authenticate_oauth(self, db: Session, device_fingerprint: FingerPrintedData) -> AuthTokens:
-        """
-        Authenticate OAuth user
-
-        Returns:
-            Dict: The generated token and expiration time.
-
-        """
-        logger.debug(f"Authenticating OAuth user: {self.user.username}")
-        return self.__generate_auth_response_and_save_session(db, device_fingerprint)
-
     def __repr__(self) -> str:
         return (f'<User(username={self.user.username}, id={self.user.id}, is_admin={self.user.is_admin})>'
                 f'')
+
+
+class OAuthAuthenticator:
+
+    @classmethod
+    def authenticate(cls,
+                     db: Session,
+                     oauth_user_data: OAuthUserCreateSchema,
+                     device_fingerprint: FingerPrintedData) -> AuthTokens:
+        logger.info(f"Trying to create or update OAuth user with return auth data: {oauth_user_data.username}")
+        user = User.create_or_update_oauth_user(db, oauth_user_data)
+        logger.debug(f"Authenticating OAuth user: {oauth_user_data.username}")
+        authentication = user.generate_auth_response_and_save_session(db, device_fingerprint)
+        logger.info(f"Now user {oauth_user_data.username} in db and auth data returning")
+        return authentication
+
