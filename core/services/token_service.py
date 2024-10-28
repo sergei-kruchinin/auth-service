@@ -141,7 +141,8 @@ class TokenStorage:
             logger.error(f"Error checking if token is blacklisted: {str(e)}")
             raise DatabaseError(f"Error checking if token is blacklisted: {str(e)}") from e
 
-    def get_token_ttl(self, token: str) -> int:
+    @staticmethod
+    def get_token_ttl(token: str) -> int:
         """
         Calculate the remaining time-to-live (TTL) for a JWT token.
 
