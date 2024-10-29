@@ -1,14 +1,19 @@
 import pytest
 import requests
+from sqlalchemy.orm import sessionmaker
+
 from core.schemas import ManualUserCreateSchema
 from core.services import Base, engine, User
-from sqlalchemy.orm import sessionmaker
+from core.password_hash import PasswordHash
+
+password_hasher = PasswordHash()
 
 
 BASE_URL = "http://localhost:5000"
 
 
 SessionLocal = sessionmaker(bind=engine)
+
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -27,14 +32,14 @@ def setup_database():
         source='manual',
         oa_id=None
     )
-    User.create_with_check(session, admin_data)
+    User.create_with_check(session, admin_data, password_hasher)
     session.commit()
     session.close()
     yield
     # Do like create_db_once.py for manual test
     Base.metadata.drop_all(bind=engine)  # Delete all tables after tests
     Base.metadata.create_all(bind=engine)  # Create all tables
-    User.create_with_check(session, admin_data)  # Return admin for manual tests
+    User.create_with_check(session, admin_data, password_hasher)  # Return admin for manual tests
 
 
 @pytest.fixture(scope="module")

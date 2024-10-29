@@ -18,9 +18,8 @@ REFRESH_EXPIRES_SECONDS = int(os.getenv('REFRESH_EXPIRES_SECONDS', 1209600))  # 
 # Setup logger
 logger = logging.getLogger(__name__)
 
-
-# Protocol for Redis interface
 class RedisClientProtocol(Protocol):
+    """Protocol for Redis interface"""
     def setex(self, name: str, time: int, value: str) -> None:
         ...
 
@@ -102,6 +101,8 @@ class TokenVerifier:
 
 # Class for managing token storage and blacklisting
 class TokenStorage:
+    redis_client: RedisClientProtocol
+
     def __init__(self, redis_client: RedisClientProtocol):
         self.redis_client = redis_client
 

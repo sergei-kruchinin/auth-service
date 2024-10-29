@@ -22,7 +22,11 @@ class PasswordHash:
             str: The hashed password.
         """
         logger.info(f"Generating password hash {password}")
-        return cls.pwd_context.hash(password)
+        try:
+            return cls.pwd_context.hash(password)
+        except AttributeError as e:
+            logger.error(f"Password should be a string, got None: {str(e)}")
+            raise TypeError("Password should be a string") from e
 
     @classmethod
     def check(cls, hashed_password: str, plain_password: str) -> bool:
@@ -39,22 +43,3 @@ class PasswordHash:
         logger.info("Checking password hash")
         return cls.pwd_context.verify(plain_password, hashed_password)
 
-    @classmethod
-    def generate_or_none(cls, password: str | None) -> str | None:
-        """
-        Generate a password hash or return None if the password is None.
-
-        Args:
-            password (str or None): The plaintext password or None.
-
-        Returns:
-            str or None: The hashed password or None.
-        """
-        logger.info("Generating a password hash or return None if the password is None")
-        if password is None:
-            return None
-        try:
-            return cls.generate(password)
-        except AttributeError as e:
-            logger.error(f"Password should be a string, got None: {str(e)}")
-            raise TypeError("Password should be a string") from e

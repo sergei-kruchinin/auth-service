@@ -16,8 +16,10 @@ from core.exceptions import *
 from core.services.token_service import TokenType, TokenStorage
 from fastapi_app.routes.dependencies import (get_db_session, token_required, get_yandex_uri,
                                              get_token_storage)
-
+from core.password_hash import PasswordHash
 logger = logging.getLogger(__name__)
+
+password_hasher = PasswordHash()
 
 
 def create_auth_response(authentication: AuthTokens) -> Response:
@@ -89,7 +91,7 @@ def register_routes(router: APIRouter):
 
         try:
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            authentication = Authenticator.authenticate(db, auth_request_fingerprinted)
+            authentication = Authenticator.authenticate(db, auth_request_fingerprinted, password_hasher)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e
         except AuthenticationError as e:
@@ -118,7 +120,7 @@ def register_routes(router: APIRouter):
             password = form_data.password
             auth_request = AuthRequest(username=username, password=password)
             auth_request_fingerprinted = auth_request.to_fingerprinted(device_fingerprint)
-            authentication = Authenticator.authenticate(db, auth_request_fingerprinted)
+            authentication = Authenticator.authenticate(db, auth_request_fingerprinted, password_hasher)
         # except ValidationError as e:
         #     raise InsufficientAuthData('username or password not specified') from e
         except AuthenticationError as e:
@@ -265,7 +267,7 @@ def register_routes(router: APIRouter):
             raise AdminRequiredError("Access Denied")
 
         try:
-            user = User.create_with_check(db, user_to_create)
+            user = User.create_with_check(db, user_to_create, password_hasher)
         except UserAlreadyExistsError as e:
             logger.warning(f"User with username already exists: {str(e)}")
             raise

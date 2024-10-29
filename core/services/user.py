@@ -2,32 +2,45 @@
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from typing import Dict, Optional
+from typing import Dict, Optional, Protocol
 import logging
 
 from core.schemas import *
 from core.exceptions import AuthenticationError, UserAlreadyExistsError, DatabaseError
 from core.services.token_service import TokenType, TokenGenerator
-from core.password_hash import PasswordHash
 from core.services.user_session import UserSession
 from core.models.user import UserTable
 logger = logging.getLogger(__name__)
 
 
+class PasswordHashProtocol(Protocol):
+    """Protocol for PasswordHash interface"""
+    @classmethod
+    def generate(cls, password: str) -> str:
+        """
+        Generate a salted hash from plaintext password.
+        """
+        ...
+
+    @classmethod
+    def check(cls, hashed_password: str, plain_password: str) -> bool:
+        """
+        Verify if the provided plaintext password matches the hashed password.
+        """
+        ...
+
+
 class User:
     """
     Represents a user in the application.
+    Contains User Management Methods
 
-    Attributes:
-        user: UserTable
     """
-
     user: UserTable
 
     def __init__(self, user_record: UserTable):
         self.user = user_record
 
-    # ### 2. User Management Methods ###
 
     @classmethod
     def list(cls, db: Session) -> Dict[str, List[Dict]]:
@@ -47,9 +60,8 @@ class User:
             logger.error(f"There was an error while retrieving users: {str(e)}")
             raise DatabaseError(f"There was an error while retrieving users{str(e)}") from e
 
-    # ### 3. User Creation Methods ###
     @classmethod
-    def _create(cls, db: Session, user_data: UserCreateSchema) -> 'User':
+    def _create(cls, db: Session, user_data: UserCreateSchema, password_hasher: PasswordHashProtocol | None) -> 'User':
         """
         Create a new user without checking if the user already exists.
         If user exists, raises a DatabaseError indicating user already exists.
@@ -57,7 +69,8 @@ class User:
         Args:
             db (Session): Session
             user_data (UserCreateSchema): The data to create a new user.
-
+            password_hasher (PasswordHashProtocol): Provides methods for hash and check
+                                                    None for OAuth users
         Returns:
             Users: The newly created user.
 
@@ -67,11 +80,16 @@ class User:
           """
         logger.debug("Creating new user")
         try:
+
+            secret = None
+            if password_hasher and user_data.password is not None:
+                secret = password_hasher.generate(user_data.password)
+
             # new_user = UserTable(**user_data.dict())
             new_user = UserTable(username=user_data.username,
                                  first_name=user_data.first_name,
                                  last_name=user_data.last_name,
-                                 secret=PasswordHash.generate_or_none(user_data.password),
+                                 secret=secret,
                                  is_admin=bool(user_data.is_admin),
                                  source=user_data.source,
                                  oa_id=user_data.oa_id)
@@ -116,7 +134,10 @@ class User:
             raise DatabaseError(f"There was an error while fetching the user: {str(e)}") from e
 
     @classmethod
-    def create_with_check(cls, db: Session, user_data: ManualUserCreateSchema) -> 'User':
+    def create_with_check(cls,
+                          db: Session,
+                          user_data: ManualUserCreateSchema,
+                          password_hasher: PasswordHashProtocol) -> 'User':
         """
         Create a new user after checking if the user already exists.
         If user exists, raises a UserAlreadyExistsError indicating user already exists.
@@ -124,6 +145,7 @@ class User:
         Args:
             db (Session): Session
             user_data (dict): The data to create a new user.
+            password_hasher (PasswordHashProtocol): Provides methods for hash and check
 
         Returns:
             Users: The newly created user.
@@ -140,7 +162,7 @@ class User:
 
         try:
             user_data = user_data.to_user_create_schema()
-            user = cls._create(db, user_data)
+            user = cls._create(db, user_data, password_hasher)
             return user
         except DatabaseError as e:
             logger.error(f"Database error occurred: {str(e)}")
@@ -161,12 +183,14 @@ class User:
 
 
 class Authenticator:
+    """
+    Class contains Authentication Methods
+    """
     user: UserTable
 
     def __init__(self, user_record: UserTable):
         self.user = user_record
 
-    # ### 4. Authentication Methods ###
     def generate_auth_response_and_save_session(self,
                                                 db: Session,
                                                 device_fingerprint: FingerPrintedData) -> AuthTokens:
@@ -201,13 +225,16 @@ class Authenticator:
         return AuthTokens(tokens=tokens, user_id=self.user.id)
 
     @staticmethod
-    def authenticate(db: Session, auth_request: AuthRequestFingerPrinted) -> AuthTokens:
+    def authenticate(db: Session,
+                     auth_request: AuthRequestFingerPrinted,
+                     password_hasher: PasswordHashProtocol) -> AuthTokens:
         """
         Authenticate user with username and password.
 
         Args:
             auth_request (AuthRequestFingerPrinted): The username and plaintext password of the user.
             db (Session): Session
+            password_hasher (PasswordHashProtocol): Provides methods for hash and check
         Returns:
             AuthTokens: The generated access and refresh tokens and their expiration times.
         Raises:
@@ -218,7 +245,7 @@ class Authenticator:
             # user = db.query(UserTable).filter_by(username=auth_request.username).first()
             user = User.get_user_by_username(db, auth_request.username)
 
-            if user is None or not PasswordHash.check(str(user.secret()), auth_request.password):
+            if user is None or not password_hasher.check(str(user.secret()), auth_request.password):
                 logger.warning(f"Authentication failed for user: {auth_request.username}")
                 raise AuthenticationError('Invalid username or invalid password')
             logger.info(f"User authenticated successfully: {auth_request.username}")
@@ -253,7 +280,9 @@ class OAuthUser(User):
             raise DatabaseError(str(e)) from e
 
     @classmethod
-    def create_or_update_oauth_user(cls, db: Session, oauth_user_data: OAuthUserCreateSchema) -> 'User':
+    def create_or_update_oauth_user(cls,
+                                    db: Session,
+                                    oauth_user_data: OAuthUserCreateSchema) -> 'User':
         """
         Create or update a user for OAuth 2.0 authorization.
         It always updates user data from OAuth Provider,
@@ -276,7 +305,7 @@ class OAuthUser(User):
 
             if user is None:
                 user_data = oauth_user_data.to_user_create_schema()
-                user = cls._create(db, user_data)
+                user = cls._create(db, user_data, password_hasher=None)
                 logger.info(f"OAuth user created: {oauth_user_data.username}")
             else:
                 user._update_oauth_user(db, oauth_user_data)
@@ -289,6 +318,8 @@ class OAuthUser(User):
 
 
 class OAuthAuthenticator:
+
+
 
     @staticmethod
     def authenticate(db: Session,

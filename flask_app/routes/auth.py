@@ -9,6 +9,9 @@ from .dependencies import *
 from core.yandex_oauth import YandexOAuthService
 from core.exceptions import *
 from core.services.token_service import TokenType, TokenStorage
+from core.password_hash import PasswordHash
+
+password_hasher = PasswordHash()
 
 
 logger = logging.getLogger(__name__)
@@ -79,7 +82,7 @@ def register_routes(bp: Blueprint):
                                                     ip=device_fingerprint.ip,
                                                     user_agent=device_fingerprint.user_agent,
                                                     accept_language=device_fingerprint.accept_language)
-            authentication = Authenticator.authenticate(db, auth_request)
+            authentication = Authenticator.authenticate(db, auth_request, password_hasher)
 
         except ValidationError as e:
             raise InsufficientAuthData('username or password not specified') from e
@@ -277,7 +280,7 @@ def register_routes(bp: Blueprint):
             raise InsufficientAuthData(f"Invalid username format") from e
 
         try:
-            User.create_with_check(db, user_data)
+            User.create_with_check(db, user_data, password_hasher)
         except UserAlreadyExistsError as e:
             logger.warning(f"User with username already exists: {str(e)}")
             raise
